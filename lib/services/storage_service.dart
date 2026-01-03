@@ -109,6 +109,11 @@ class StorageService {
     return _sessions.values.toList();
   }
 
+  /// Get a specific session by ID
+  SessionRecord? getSession(String sessionId) {
+    return _sessions.get(sessionId);
+  }
+
   /// Check if routine was completed on date
   bool isRoutineCompletedOnDate(DateTime date, String routineId) {
     final sessions = getSessionsForDate(date);

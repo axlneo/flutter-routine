@@ -19,11 +19,11 @@ class PolarService {
   }
 
   final Polar _polar = Polar();
-
+  
   String? _connectedDeviceId;
   PolarConnectionState _connectionState = PolarConnectionState.disconnected;
   int? _currentHr;
-
+  
   StreamSubscription<PolarDeviceInfo>? _scanSubscription;
   StreamSubscription<PolarHrData>? _hrSubscription;
   StreamSubscription<PolarDeviceInfo>? _connectingSubscription;
@@ -107,9 +107,9 @@ class PolarService {
     try {
       _scanSubscription?.cancel();
       _scanSubscription = _polar.searchForDevice().listen(
-            (device) {
+        (device) {
           debugPrint('Found device: ${device.deviceId} - ${device.name}');
-
+          
           // Only add H10 devices or Polar devices
           if (device.name.toLowerCase().contains('h10') ||
               device.name.toLowerCase().contains('polar')) {
@@ -139,7 +139,7 @@ class PolarService {
   void stopScan() {
     _scanSubscription?.cancel();
     _scanSubscription = null;
-
+    
     if (_connectionState == PolarConnectionState.scanning) {
       _setConnectionState(PolarConnectionState.disconnected);
     }
@@ -150,10 +150,10 @@ class PolarService {
     try {
       stopScan();
       _setConnectionState(PolarConnectionState.connecting);
-
+      
       // The Polar SDK handles connection state via streams
       await _polar.connectToDevice(deviceId);
-
+      
       debugPrint('Connection initiated to $deviceId');
     } catch (e) {
       debugPrint('Connect error: $e');
@@ -166,8 +166,8 @@ class PolarService {
     try {
       // Wait for streaming features to be ready
       await _polar.sdkFeatureReady.firstWhere(
-            (e) => e.identifier == deviceId &&
-            e.feature == PolarSdkFeature.onlineStreaming,
+        (e) => e.identifier == deviceId && 
+               e.feature == PolarSdkFeature.onlineStreaming,
       ).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
@@ -183,7 +183,7 @@ class PolarService {
       if (availableTypes.contains(PolarDataType.hr)) {
         _hrSubscription?.cancel();
         _hrSubscription = _polar.startHrStreaming(deviceId).listen(
-              (data) {
+          (data) {
             if (data.samples.isNotEmpty) {
               final hr = data.samples.first.hr;
               _currentHr = hr;

@@ -3,6 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../services/storage_service.dart';
 import '../models/models.dart';
+import 'session_detail_page.dart';
 
 class WeekCalendarPage extends StatefulWidget {
   const WeekCalendarPage({super.key});
@@ -293,60 +294,99 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
   Widget _buildRoutineItem(String title, bool completed, List<SessionRecord> sessions) {
     SessionRecord? session = sessions.isNotEmpty ? sessions.first : null;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: completed
-            ? Colors.green.withOpacity(0.2)
-            : Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: completed
-              ? Colors.green.withOpacity(0.5)
-              : Colors.white.withOpacity(0.1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            completed ? Icons.check_circle : Icons.circle_outlined,
-            color: completed ? Colors.green : Colors.white30,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(completed ? 1 : 0.6),
-                    fontWeight: FontWeight.w500,
-                  ),
+    return GestureDetector(
+      onTap: session != null
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SessionDetailPage(session: session),
                 ),
-                if (session != null) ...[
-                  const SizedBox(height: 4),
+              )
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: completed
+              ? Colors.green.withOpacity(0.2)
+              : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: completed
+                ? Colors.green.withOpacity(0.5)
+                : Colors.white.withOpacity(0.1),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              completed ? Icons.check_circle : Icons.circle_outlined,
+              color: completed ? Colors.green : Colors.white30,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    '${session.durationMinutes} min${session.averageHr != null ? ' • ❤️ ${session.averageHr} bpm' : ''}',
+                    title,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 12,
+                      color: Colors.white.withOpacity(completed ? 1 : 0.6),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (session != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          '${session.durationMinutes} min',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (session.averageHr != null) ...[
+                          Text(
+                            ' • ❤️ ${session.averageHr} bpm',
+                            style: TextStyle(
+                              color: Colors.red.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                        if (session.hrTrace.isNotEmpty) ...[
+                          Text(
+                            ' • 📊',
+                            style: TextStyle(
+                              color: Colors.blue.withOpacity(0.7),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ),
-          if (completed)
-            Text(
-              '✅',
-              style: TextStyle(
-                color: Colors.green.withOpacity(0.8),
               ),
             ),
-        ],
+            if (session != null) ...[
+              Icon(
+                Icons.chevron_right,
+                color: Colors.white.withOpacity(0.5),
+                size: 20,
+              ),
+            ] else if (completed) ...[
+              Text(
+                '✅',
+                style: TextStyle(
+                  color: Colors.green.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
 import '../services/polar_service.dart';
+import 'session_detail_page.dart';
 
 class RoutinePlayerPage extends StatefulWidget {
   final RoutineType routineType;
@@ -27,7 +28,8 @@ class RoutinePlayerPage extends StatefulWidget {
   State<RoutinePlayerPage> createState() => _RoutinePlayerPageState();
 }
 
-class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
+class _RoutinePlayerPageState extends State<RoutinePlayerPage>
+    with SingleTickerProviderStateMixin {
   Timer? _timer;
   int _currentTime = 0;
   int _currentSectionIndex = 0;
@@ -45,6 +47,10 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
   int? _currentHr;
   UserSettings? _settings;
 
+  // Animation for heart
+  late AnimationController _heartAnimController;
+  late Animation<double> _heartAnimation;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +58,18 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
     _loadSettings();
     _subscribeToHr();
     _enableWakelock();
+    _setupAnimations();
+  }
+
+  void _setupAnimations() {
+    _heartAnimController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _heartAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _heartAnimController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _initTts() async {
@@ -89,6 +107,7 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
   void dispose() {
     _timer?.cancel();
     _hrSubscription?.cancel();
+    _heartAnimController.dispose();
     _disableWakelock();
     _tts.stop();
     super.dispose();
@@ -300,45 +319,121 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
 
   Widget _buildHrDisplay() {
     if (_currentHr == null || _settings == null) {
-      return const SizedBox.shrink();
+      // Show placeholder when not connected
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.favorite_border,
+              color: Colors.grey.withOpacity(0.5),
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'H10 non connecté',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.4),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     final percent = _settings!.calculateHrPercent(_currentHr!);
     final zone = _settings!.getZone(percent);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: zone.color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: zone.color.withOpacity(0.5)),
+        gradient: LinearGradient(
+          colors: [
+            zone.color.withOpacity(0.3),
+            zone.color.withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: zone.color.withOpacity(0.6), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: zone.color.withOpacity(0.3),
+            blurRadius: 12,
+            spreadRadius: 0,
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Animated heart icon
+          AnimatedBuilder(
+            animation: _heartAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _heartAnimation.value,
+                child: Icon(
+                  Icons.favorite,
+                  color: zone.color,
+                  size: 24,
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          // BPM value (large)
           Text(
-            '❤️ $_currentHr bpm',
+            '$_currentHr',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 28,
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            '• $percent%',
-            style: TextStyle(
-              color: zone.color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+          const SizedBox(width: 4),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'bpm',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                '$percent%',
+                style: TextStyle(
+                  color: zone.color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            '• ${zone.label}',
-            style: TextStyle(
+          const SizedBox(width: 12),
+          // Zone badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
               color: zone.color,
-              fontSize: 14,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              zone.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -402,11 +497,9 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
 
           const SizedBox(height: 20),
 
-          // HR Display (if connected)
-          if (_polar.isConnected) ...[
-            _buildHrDisplay(),
-            const SizedBox(height: 20),
-          ],
+          // HR Display (always show, connected or not)
+          Center(child: _buildHrDisplay()),
+          const SizedBox(height: 20),
 
           // Sections overview
           Expanded(
@@ -687,6 +780,11 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
   }
 
   Widget _buildCompletionScreen() {
+    // Get session to show HR stats
+    final session = _sessionId != null ? _storage.getSession(_sessionId!) : null;
+    final avgHr = session?.averageHr;
+    final hrCount = session?.hrTrace.length ?? 0;
+
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -730,15 +828,50 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage> {
                   '⏱️ Durée',
                   '${widget.sections.fold<int>(0, (s, sec) => s + sec.totalDuration) ~/ 60} min',
                 ),
-                if (_currentHr != null) ...[
+                if (avgHr != null) ...[
                   const Divider(color: Colors.white24),
-                  _buildStatRow('❤️ FC moyenne', '-- bpm'),
+                  _buildStatRow('❤️ FC moyenne', '$avgHr bpm'),
+                ],
+                if (hrCount > 0) ...[
+                  const Divider(color: Colors.white24),
+                  _buildStatRow('📈 Échantillons HR', '$hrCount points'),
                 ],
               ],
             ),
           ),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 24),
+
+          // View details button (if HR data available)
+          if (session != null && hrCount > 0) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SessionDetailPage(session: session),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white54),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(Icons.analytics_outlined, color: Colors.white),
+                label: const Text(
+                  'Voir les détails HR',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Return button
           SizedBox(

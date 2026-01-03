@@ -11,7 +11,7 @@ class NotificationsService {
   NotificationsService._internal();
 
   final FlutterLocalNotificationsPlugin _notifications =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
 
@@ -67,7 +67,7 @@ class NotificationsService {
 
     await _notifications
         .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
   }
 
@@ -80,22 +80,22 @@ class NotificationsService {
   Future<bool> requestPermissions() async {
     if (Platform.isAndroid) {
       final status = await Permission.notification.request();
-
+      
       // For Android 12+, also request exact alarm permission
       if (Platform.isAndroid) {
         await Permission.scheduleExactAlarm.request();
       }
-
+      
       return status.isGranted;
     } else if (Platform.isIOS) {
       final result = await _notifications
           .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>()
+              IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+            alert: true,
+            badge: true,
+            sound: true,
+          );
       return result ?? false;
     }
     return false;
@@ -138,16 +138,16 @@ class NotificationsService {
   /// Schedule evening notification at 19:00
   Future<void> _scheduleEveningNotification() async {
     const title = '🌙 Routine du Soir';
-
+    
     // Get today's weekday to check for omega-3
     final now = DateTime.now();
-    final isOmega3Day = now.weekday == DateTime.monday ||
-        now.weekday == DateTime.thursday;
-
-    final omega3Text = isOmega3Day
+    final isOmega3Day = now.weekday == DateTime.monday || 
+                        now.weekday == DateTime.thursday;
+    
+    final omega3Text = isOmega3Day 
         ? '+ Oméga-3 EPAX (aujourd\'hui)'
         : '+ Oméga-3 EPAX (lundi & jeudi)';
-
+    
     final body = 'C\'est l\'heure de ta routine + médicaments du soir !\n'
         '💊 Ramipril, Bisoprolol 2,5mg, Statine, Multivitamines\n'
         '$omega3Text';
@@ -205,7 +205,7 @@ class NotificationsService {
       matchDateTimeComponents: DateTimeComponents.time,
       payload: payload,
       uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
 
     debugPrint('Scheduled notification $id at $scheduledTime');
