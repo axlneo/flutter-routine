@@ -68,6 +68,12 @@ dependencies:
   # Cached images
   cached_network_image: ^3.3.1
 
+  # Firebase
+  firebase_core: ^3.8.1
+  cloud_firestore: ^5.6.0
+  firebase_auth: ^5.4.0
+  google_sign_in: ^6.2.2
+
   # Utils
   intl: ^0.20.2
   uuid: ^4.4.2

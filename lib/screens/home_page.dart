@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'day_selector_page.dart';
 import 'routine_player_page.dart';
 import 'week_calendar_page.dart';
@@ -11,7 +13,7 @@ import '../data/morning_routine.dart';
 import '../services/polar_service.dart';
 import '../services/step_service.dart';
 import '../services/storage_service.dart';
-import 'package:intl/intl.dart';
+import '../services/firebase_sync_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,9 +26,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final PolarService _polar = PolarService();
   final StepService _steps = StepService();
   final StorageService _storage = StorageService();
+  final FirebaseSyncService _sync = FirebaseSyncService();
   static const int _stepGoal = 10000;
   static const int _cardioGoal = 5;
   bool _waitingForHealthConnectReturn = false;
+  bool _isSyncing = false;
 
   @override
   void initState() {
@@ -76,7 +80,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with dynamic greeting and Polar status
+                // Header with dynamic greeting, cloud badge and Polar status
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -92,55 +96,63 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Polar status indicator
-                    StreamBuilder<PolarConnectionState>(
-                      stream: _polar.connectionStateStream,
-                      builder: (context, snapshot) {
-                        final isConnected = _polar.isConnected;
-                        return GestureDetector(
-                          onTap: () => _openPolarConnect(),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isConnected
-                                  ? Colors.green.withOpacity(0.2)
-                                  : Colors.grey.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isConnected
-                                    ? Colors.green
-                                    : Colors.grey.withOpacity(0.5),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isConnected
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  size: 16,
-                                  color: isConnected ? Colors.green : Colors.grey,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Cloud backup badge
+                        _buildCloudBadge(),
+                        const SizedBox(width: 8),
+                        // Polar status indicator
+                        StreamBuilder<PolarConnectionState>(
+                          stream: _polar.connectionStateStream,
+                          builder: (context, snapshot) {
+                            final isConnected = _polar.isConnected;
+                            return GestureDetector(
+                              onTap: () => _openPolarConnect(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  isConnected ? 'H10' : 'Non connecté',
-                                  style: TextStyle(
+                                decoration: BoxDecoration(
+                                  color: isConnected
+                                      ? Colors.green.withOpacity(0.2)
+                                      : Colors.grey.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
                                     color: isConnected
                                         ? Colors.green
-                                        : Colors.grey,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                                        : Colors.grey.withOpacity(0.5),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isConnected
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      size: 16,
+                                      color: isConnected ? Colors.green : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isConnected ? 'H10' : 'Non connecté',
+                                      style: TextStyle(
+                                        color: isConnected
+                                            ? Colors.green
+                                            : Colors.grey,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -697,6 +709,283 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ],
       ),
     );
+  }
+
+  // ============ CLOUD BACKUP ============
+
+  Widget _buildCloudBadge() {
+    return StreamBuilder<User?>(
+      stream: _sync.authStateChanges,
+      builder: (context, snapshot) {
+        final isSignedIn = _sync.isSignedIn;
+        return GestureDetector(
+          onTap: () => _showCloudDialog(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSignedIn
+                  ? Colors.blue.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSignedIn
+                    ? Colors.blue
+                    : Colors.grey.withOpacity(0.5),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSignedIn ? Icons.cloud_done : Icons.cloud_off,
+                  size: 16,
+                  color: isSignedIn ? Colors.blue : Colors.grey,
+                ),
+                if (isSignedIn) ...[
+                  const SizedBox(width: 6),
+                  if (_isSyncing)
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.blue,
+                      ),
+                    )
+                  else
+                    const Text(
+                      'Cloud',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCloudDialog() {
+    final isSignedIn = _sync.isSignedIn;
+    final user = _sync.currentUser;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1a1a2e),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              isSignedIn ? Icons.cloud_done : Icons.cloud_off,
+              color: isSignedIn ? Colors.blue : Colors.grey,
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Sauvegarde Cloud',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: isSignedIn
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user?.displayName ?? 'Connecté',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  Text(
+                    user?.email ?? '',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _handleBackup();
+                          },
+                          icon: const Icon(Icons.cloud_upload, size: 18),
+                          label: const Text('Sauvegarder'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _handleRestore();
+                          },
+                          icon: const Icon(Icons.cloud_download, size: 18),
+                          label: const Text('Restaurer'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white70,
+                            side: const BorderSide(color: Colors.white30),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : const Text(
+                'Connecte-toi avec Google pour sauvegarder tes données dans le cloud.',
+                style: TextStyle(color: Colors.white70),
+              ),
+        actions: [
+          if (isSignedIn) ...[
+            TextButton(
+              onPressed: () async {
+                await _sync.signOut();
+                if (ctx.mounted) Navigator.pop(ctx);
+                setState(() {});
+              },
+              child: const Text(
+                'Déconnecter',
+                style: TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ),
+          ] else ...[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Annuler',
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _handleSignIn();
+              },
+              icon: const Icon(Icons.login, size: 18),
+              label: const Text('Connexion Google'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black87,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleSignIn() async {
+    try {
+      await _sync.signInWithGoogle();
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur de connexion : $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleBackup() async {
+    setState(() => _isSyncing = true);
+    try {
+      final count = await _sync.backup();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sauvegarde terminée ($count documents)')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
+  }
+
+  Future<void> _handleRestore() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1a1a2e),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Restaurer la sauvegarde ?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Toutes les données locales seront remplacées par la sauvegarde cloud.',
+          style: TextStyle(color: Colors.white.withOpacity(0.8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Annuler',
+                style: TextStyle(color: Colors.white.withOpacity(0.5))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Restaurer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isSyncing = true);
+    try {
+      final count = await _sync.restore();
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Restauration terminée ($count documents)')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
   }
 
   void _openPolarConnect() {

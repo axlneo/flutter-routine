@@ -134,6 +134,30 @@ class SessionRecord extends HiveObject {
     List<HrPoint>? hrTrace,
   }) : hrTrace = hrTrace ?? [];
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'tsStart': tsStart.toIso8601String(),
+        'tsEnd': tsEnd?.toIso8601String(),
+        'routineId': routineId,
+        'day': day,
+        'completed': completed,
+        'hrTrace': hrTrace.map((p) => p.toJson()).toList(),
+      };
+
+  factory SessionRecord.fromJson(Map<String, dynamic> json) => SessionRecord(
+        id: json['id'] as String,
+        tsStart: DateTime.parse(json['tsStart'] as String),
+        tsEnd: json['tsEnd'] != null
+            ? DateTime.parse(json['tsEnd'] as String)
+            : null,
+        routineId: json['routineId'] as String,
+        day: json['day'] as int?,
+        completed: json['completed'] as bool,
+        hrTrace: (json['hrTrace'] as List<dynamic>?)
+            ?.map((e) => HrPoint.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
   int get durationMinutes {
     if (tsEnd == null) return 0;
     return tsEnd!.difference(tsStart).inMinutes;
@@ -160,6 +184,11 @@ class HrPoint {
         't': t.toIso8601String(),
         'hr': hr,
       };
+
+  factory HrPoint.fromJson(Map<String, dynamic> json) => HrPoint(
+        t: DateTime.parse(json['t'] as String),
+        hr: json['hr'] as int,
+      );
 }
 
 @HiveType(typeId: 2)
@@ -186,6 +215,24 @@ class MedRecord extends HiveObject {
     this.checked = false,
     this.checkedAt,
   });
+
+  Map<String, dynamic> toJson() => {
+        'date': date,
+        'slot': slot,
+        'items': items,
+        'checked': checked,
+        'checkedAt': checkedAt?.toIso8601String(),
+      };
+
+  factory MedRecord.fromJson(Map<String, dynamic> json) => MedRecord(
+        date: json['date'] as String,
+        slot: json['slot'] as String,
+        items: (json['items'] as List<dynamic>).cast<String>(),
+        checked: json['checked'] as bool,
+        checkedAt: json['checkedAt'] != null
+            ? DateTime.parse(json['checkedAt'] as String)
+            : null,
+      );
 }
 
 @HiveType(typeId: 3)
@@ -216,6 +263,24 @@ class UserSettings extends HiveObject {
     this.notificationsEnabled = true,
     this.polarDeviceId,
   });
+
+  Map<String, dynamic> toJson() => {
+        'age': age,
+        'hrRest': hrRest,
+        'hrMaxOverride': hrMaxOverride,
+        'useKarvonen': useKarvonen,
+        'notificationsEnabled': notificationsEnabled,
+        'polarDeviceId': polarDeviceId,
+      };
+
+  factory UserSettings.fromJson(Map<String, dynamic> json) => UserSettings(
+        age: json['age'] as int? ?? 40,
+        hrRest: json['hrRest'] as int?,
+        hrMaxOverride: json['hrMaxOverride'] as int?,
+        useKarvonen: json['useKarvonen'] as bool? ?? true,
+        notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
+        polarDeviceId: json['polarDeviceId'] as String?,
+      );
 
   int get hrMax => hrMaxOverride ?? (220 - age);
 

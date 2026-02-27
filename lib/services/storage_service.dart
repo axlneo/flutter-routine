@@ -232,6 +232,35 @@ class StorageService {
     return count;
   }
 
+  // ============ BULK OPERATIONS (backup/restore) ============
+
+  Map<String, MedRecord> getAllMeds() {
+    final result = <String, MedRecord>{};
+    for (final key in _meds.keys) {
+      final record = _meds.get(key);
+      if (record != null) {
+        result[key as String] = record;
+      }
+    }
+    return result;
+  }
+
+  Future<void> clearAllSessions() async {
+    await _sessions.clear();
+  }
+
+  Future<void> putSession(SessionRecord session) async {
+    await _sessions.put(session.id, session);
+  }
+
+  Future<void> clearAllMeds() async {
+    await _meds.clear();
+  }
+
+  Future<void> putMed(String key, MedRecord record) async {
+    await _meds.put(key, record);
+  }
+
   // ============ CALENDAR MARKERS ============
 
   /// Get markers for calendar view
