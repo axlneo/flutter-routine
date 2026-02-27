@@ -137,14 +137,13 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
               // Legend
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildLegendItem('🌅', 'Matin'),
-                    _buildLegendItem('🌙', 'Soir'),
-                    _buildLegendItem('💊', 'Médocs'),
-                    _buildLegendItem('🏃', 'Cardio'),
+                    _buildLegendItem(Colors.orange, 'Matin'),
+                    _buildLegendItem(Colors.indigo, 'Soir'),
+                    _buildLegendItem(Colors.green, 'Médocs'),
+                    _buildLegendItem(Colors.redAccent, 'Cardio'),
                   ],
                 ),
               ),
@@ -198,17 +197,24 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
     );
   }
 
-  Widget _buildLegendItem(String emoji, String label) {
+  Widget _buildLegendItem(Color color, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 4),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
         Text(
           label,
           style: TextStyle(
             color: Colors.white.withOpacity(0.7),
-            fontSize: 12,
+            fontSize: 13,
           ),
         ),
       ],

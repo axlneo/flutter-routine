@@ -65,6 +65,9 @@ dependencies:
   url_launcher: ^6.2.0
   android_intent_plus: ^5.0.2
 
+  # Cached images
+  cached_network_image: ^3.3.1
+
   # Utils
   intl: ^0.20.2
   uuid: ^4.4.2

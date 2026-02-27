@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'day_selector_page.dart';
 import 'routine_player_page.dart';
 import 'week_calendar_page.dart';
@@ -46,6 +48,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Bonjour';
+    if (hour < 17) return 'Bon après-midi';
+    return 'Bonsoir';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -67,14 +76,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with Polar status
+                // Header with dynamic greeting and Polar status
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Flexible(
-                      child: const Text(
-                        '💪 Fitness App',
-                        style: TextStyle(
+                      child: Text(
+                        _getGreeting(),
+                        style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -145,17 +154,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 20),
 
-                // Step counter banner
+                // Step counter banner — glassmorphism
                 _buildStepBanner(),
 
                 const SizedBox(height: 12),
 
-                // Cardio counter banner
+                // Cardio counter banner — glassmorphism
                 _buildCardioBanner(),
 
                 const SizedBox(height: 20),
 
-                // Navigation cards
+                // Navigation cards with Unsplash images
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 2,
@@ -164,11 +173,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     childAspectRatio: 1.0,
                     children: [
                       // Morning routine
-                      _NavigationCard(
-                        emoji: '🌅',
-                        title: 'Routine\nMatin',
+                      _ImageCard(
+                        imageUrl:
+                            'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop',
+                        title: 'Routine Matin',
                         subtitle: '20 min',
-                        gradientColors: const [
+                        fallbackColors: const [
                           Color(0xFFFF6B6B),
                           Color(0xFFFF8E53),
                         ],
@@ -179,11 +189,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       ),
 
                       // Evening routine
-                      _NavigationCard(
-                        emoji: '🌙',
-                        title: 'Routine\nSoir',
+                      _ImageCard(
+                        imageUrl:
+                            'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&h=400&fit=crop',
+                        title: 'Routine Soir',
                         subtitle: '40 min',
-                        gradientColors: const [
+                        fallbackColors: const [
                           Color(0xFF4E54C8),
                           Color(0xFF8F94FB),
                         ],
@@ -194,11 +205,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       ),
 
                       // Week calendar
-                      _NavigationCard(
-                        emoji: '📅',
+                      _ImageCard(
+                        imageUrl:
+                            'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=400&h=400&fit=crop',
                         title: 'Semaine',
                         subtitle: 'Calendrier',
-                        gradientColors: const [
+                        fallbackColors: const [
                           Color(0xFF11998E),
                           Color(0xFF38EF7D),
                         ],
@@ -206,11 +218,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       ),
 
                       // Settings & medications
-                      _NavigationCard(
-                        emoji: '🔔',
-                        title: 'Planning &\nMédocs',
+                      _ImageCard(
+                        imageUrl:
+                            'https://images.unsplash.com/photo-1505576399279-0d754f0d8b19?w=400&h=400&fit=crop',
+                        title: 'Planning & Médocs',
                         subtitle: 'Paramètres',
-                        gradientColors: const [
+                        fallbackColors: const [
                           Color(0xFFF857A6),
                           Color(0xFFFF5858),
                         ],
@@ -223,7 +236,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 // Footer
                 Center(
                   child: Text(
-                    'Reste constant, les résultats suivront 🔥',
+                    'Reste constant, les résultats suivront.',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.5),
@@ -240,7 +253,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildStepBanner() {
-    // Listen to both status and steps streams
     return StreamBuilder<StepStatus>(
       stream: _steps.statusStream,
       initialData: _steps.status,
@@ -259,79 +271,89 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
             return GestureDetector(
               onTap: () => _onStepBannerTap(status, hasData),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
-                  ),
-                ),
-                child: hasData
-                    ? Row(
-                        children: [
-                          const Text('\u{1F6B6}', style: TextStyle(fontSize: 24)),
-                          const SizedBox(width: 12),
-                          Text(
-                            '${formatter.format(steps)} pas',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: LinearProgressIndicator(
-                                value: progress,
-                                minHeight: 10,
-                                backgroundColor: Colors.white.withOpacity(0.1),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  progress >= 1.0
-                                      ? Colors.greenAccent
-                                      : Colors.deepPurpleAccent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.15),
+                      ),
+                    ),
+                    child: hasData
+                        ? Row(
+                            children: [
+                              Icon(
+                                Icons.directions_walk,
+                                color: Colors.white.withOpacity(0.9),
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                '${formatter.format(steps)} pas',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$percent%',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            status == StepStatus.healthConnectUnavailable
-                                ? Icons.download
-                                : Icons.directions_walk,
-                            color: Colors.white.withOpacity(0.3),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              status == StepStatus.healthConnectUnavailable
-                                  ? 'Installer Health Connect pour les pas'
-                                  : 'Taper pour activer le compteur de pas',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.3),
-                                fontSize: 14,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: LinearProgressIndicator(
+                                    value: progress,
+                                    minHeight: 10,
+                                    backgroundColor: Colors.white.withOpacity(0.1),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      progress >= 1.0
+                                          ? Colors.greenAccent
+                                          : Colors.deepPurpleAccent,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '$percent%',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                status == StepStatus.healthConnectUnavailable
+                                    ? Icons.download
+                                    : Icons.directions_walk,
+                                color: Colors.white.withOpacity(0.3),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  status == StepStatus.healthConnectUnavailable
+                                      ? 'Installer Health Connect pour les pas'
+                                      : 'Taper pour activer le compteur de pas',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.3),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                  ),
+                ),
               ),
             );
           },
@@ -351,101 +373,108 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         await _storage.setCardioCompleted(today, !done);
         setState(() {});
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: goalReached
-                ? Colors.greenAccent.withOpacity(0.4)
-                : Colors.white.withOpacity(0.1),
-          ),
-        ),
-        child: Column(
-          children: [
-            Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: goalReached
+                    ? Colors.greenAccent.withOpacity(0.4)
+                    : Colors.white.withOpacity(0.15),
+              ),
+            ),
+            child: Column(
               children: [
-                Text(
-                  goalReached ? '\u{1F3C6}' : '\u{1F3C3}',
-                  style: const TextStyle(fontSize: 22),
+                Row(
+                  children: [
+                    Icon(
+                      goalReached ? Icons.emoji_events : Icons.favorite_border,
+                      color: goalReached ? Colors.greenAccent : Colors.white.withOpacity(0.9),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        goalReached
+                            ? 'Objectif cardio atteint !'
+                            : 'Cardio : $weekCount/$_cardioGoal cette semaine',
+                        style: TextStyle(
+                          color: goalReached ? Colors.greenAccent : Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: done
+                            ? Colors.greenAccent.withOpacity(0.2)
+                            : Colors.deepPurpleAccent.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: done
+                              ? Colors.greenAccent.withOpacity(0.5)
+                              : Colors.deepPurpleAccent.withOpacity(0.5),
+                        ),
+                      ),
+                      child: Text(
+                        done ? 'Fait \u2713' : 'Fait ?',
+                        style: TextStyle(
+                          color: done ? Colors.greenAccent : Colors.deepPurpleAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    goalReached
-                        ? 'Objectif cardio atteint !'
-                        : 'Cardio : $weekCount/$_cardioGoal cette semaine',
-                    style: TextStyle(
-                      color: goalReached ? Colors.greenAccent : Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: done
-                        ? Colors.greenAccent.withOpacity(0.2)
-                        : Colors.deepPurpleAccent.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: done
-                          ? Colors.greenAccent.withOpacity(0.5)
-                          : Colors.deepPurpleAccent.withOpacity(0.5),
-                    ),
-                  ),
-                  child: Text(
-                    done ? 'Fait \u2713' : 'Fait ?',
-                    style: TextStyle(
-                      color: done ? Colors.greenAccent : Colors.deepPurpleAccent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(7, (i) {
+                    final monday = today.subtract(Duration(days: today.weekday - 1));
+                    final day = monday.add(Duration(days: i));
+                    final filled = _storage.isCardioCompletedOnDate(day);
+                    const dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+                    final isToday = day.day == today.day &&
+                        day.month == today.month &&
+                        day.year == today.year;
+                    return Column(
+                      children: [
+                        Text(
+                          dayLabels[i],
+                          style: TextStyle(
+                            color: isToday
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.3),
+                            fontSize: 11,
+                            fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Icon(
+                          filled ? Icons.circle : Icons.circle_outlined,
+                          size: 14,
+                          color: filled
+                              ? (goalReached ? Colors.greenAccent : Colors.deepPurpleAccent)
+                              : Colors.white.withOpacity(0.15),
+                        ),
+                      ],
+                    );
+                  }),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(7, (i) {
-                final monday = today.subtract(Duration(days: today.weekday - 1));
-                final day = monday.add(Duration(days: i));
-                final filled = _storage.isCardioCompletedOnDate(day);
-                const dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-                final isToday = day.day == today.day &&
-                    day.month == today.month &&
-                    day.year == today.year;
-                return Column(
-                  children: [
-                    Text(
-                      dayLabels[i],
-                      style: TextStyle(
-                        color: isToday
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.3),
-                        fontSize: 11,
-                        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Icon(
-                      filled ? Icons.circle : Icons.circle_outlined,
-                      size: 14,
-                      color: filled
-                          ? (goalReached ? Colors.greenAccent : Colors.deepPurpleAccent)
-                          : Colors.white.withOpacity(0.15),
-                    ),
-                  ],
-                );
-              }),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -458,12 +487,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     } else if (hasData) {
       await _steps.refreshSteps();
     } else {
-      // Try the standard permission flow first
       final error = await _steps.requestPermissions();
       if (error == null) {
         await _steps.refreshSteps();
       } else if (mounted) {
-        // Standard flow failed (MIUI etc.) — show manual instructions
         _showHealthConnectHelpDialog();
       }
     }
@@ -569,7 +596,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void _showH10Dialog(BuildContext context, {required VoidCallback onProceed}) {
-    // If already connected, proceed directly
     if (_polar.isConnected) {
       onProceed();
       return;
@@ -693,7 +719,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
     );
 
-    // Proceed regardless of connection result
     if (mounted) {
       onProceed();
     }
@@ -743,18 +768,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 }
 
-class _NavigationCard extends StatelessWidget {
-  final String emoji;
+class _ImageCard extends StatelessWidget {
+  final String imageUrl;
   final String title;
   final String subtitle;
-  final List<Color> gradientColors;
+  final List<Color> fallbackColors;
   final VoidCallback onTap;
 
-  const _NavigationCard({
-    required this.emoji,
+  const _ImageCard({
+    required this.imageUrl,
     required this.title,
     required this.subtitle,
-    required this.gradientColors,
+    required this.fallbackColors,
     required this.onTap,
   });
 
@@ -762,58 +787,78 @@ class _NavigationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradientColors,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: gradientColors.first.withOpacity(0.4),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Image with fallback gradient
+            CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: fallbackColors,
+                  ),
+                ),
+              ),
+              errorWidget: (context, url, error) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: fallbackColors,
+                  ),
+                ),
+              ),
+            ),
+
+            // Dark gradient overlay
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                ),
+              ),
+            ),
+
+            // Text content
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                emoji,
-                style: const TextStyle(fontSize: 32),
-              ),
-              const SizedBox(height: 8),
-              Flexible(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.1,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
         ),
       ),
     );
