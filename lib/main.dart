@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'services/storage_service.dart';
 import 'services/notifications_service.dart';
+import 'services/step_service.dart';
 import 'screens/home_page.dart';
 
 void main() async {
@@ -13,6 +15,9 @@ void main() async {
 
   // Initialize storage (Hive)
   await StorageService().init();
+
+  // Initialize step counter (Health Connect / HealthKit)
+  await StepService().init();
 
   // Initialize notifications
   await NotificationsService().init();
@@ -44,6 +49,15 @@ class FitnessApp extends StatelessWidget {
     return MaterialApp(
       title: 'Fitness App',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('fr', 'FR'),
+      ],
+      locale: const Locale('fr', 'FR'),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,

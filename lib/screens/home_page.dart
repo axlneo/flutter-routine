@@ -7,6 +7,9 @@ import 'polar_connect_page.dart';
 import '../models/models.dart';
 import '../data/morning_routine.dart';
 import '../services/polar_service.dart';
+import '../services/step_service.dart';
+import '../services/storage_service.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,8 +18,33 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final PolarService _polar = PolarService();
+  final StepService _steps = StepService();
+  final StorageService _storage = StorageService();
+  static const int _stepGoal = 10000;
+  static const int _cardioGoal = 5;
+  bool _waitingForHealthConnectReturn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _waitingForHealthConnectReturn) {
+      _waitingForHealthConnectReturn = false;
+      _steps.recheckAfterSettings();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +143,17 @@ class _HomePageState extends State<HomePage> {
                     color: Colors.white.withOpacity(0.7),
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
+
+                // Step counter banner
+                _buildStepBanner(),
+
+                const SizedBox(height: 12),
+
+                // Cardio counter banner
+                _buildCardioBanner(),
+
+                const SizedBox(height: 20),
 
                 // Navigation cards
                 Expanded(
@@ -197,6 +235,335 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStepBanner() {
+    // Listen to both status and steps streams
+    return StreamBuilder<StepStatus>(
+      stream: _steps.statusStream,
+      initialData: _steps.status,
+      builder: (context, statusSnap) {
+        final status = statusSnap.data ?? StepStatus.noPermission;
+
+        return StreamBuilder<int>(
+          stream: _steps.stepsStream,
+          initialData: _steps.todaySteps,
+          builder: (context, stepsSnap) {
+            final steps = stepsSnap.data;
+            final hasData = status == StepStatus.ready && steps != null && steps > 0;
+            final progress = hasData ? (steps / _stepGoal).clamp(0.0, 1.0) : 0.0;
+            final percent = (progress * 100).toInt();
+            final formatter = NumberFormat('#,###', 'fr_FR');
+
+            return GestureDetector(
+              onTap: () => _onStepBannerTap(status, hasData),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+                child: hasData
+                    ? Row(
+                        children: [
+                          const Text('\u{1F6B6}', style: TextStyle(fontSize: 24)),
+                          const SizedBox(width: 12),
+                          Text(
+                            '${formatter.format(steps)} pas',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                minHeight: 10,
+                                backgroundColor: Colors.white.withOpacity(0.1),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  progress >= 1.0
+                                      ? Colors.greenAccent
+                                      : Colors.deepPurpleAccent,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$percent%',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            status == StepStatus.healthConnectUnavailable
+                                ? Icons.download
+                                : Icons.directions_walk,
+                            color: Colors.white.withOpacity(0.3),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              status == StepStatus.healthConnectUnavailable
+                                  ? 'Installer Health Connect pour les pas'
+                                  : 'Taper pour activer le compteur de pas',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.3),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCardioBanner() {
+    final today = DateTime.now();
+    final done = _storage.isCardioCompletedOnDate(today);
+    final weekCount = _storage.getWeeklyCardioCount(today);
+    final goalReached = weekCount >= _cardioGoal;
+
+    return GestureDetector(
+      onTap: () async {
+        await _storage.setCardioCompleted(today, !done);
+        setState(() {});
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: goalReached
+                ? Colors.greenAccent.withOpacity(0.4)
+                : Colors.white.withOpacity(0.1),
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Text(
+                  goalReached ? '\u{1F3C6}' : '\u{1F3C3}',
+                  style: const TextStyle(fontSize: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    goalReached
+                        ? 'Objectif cardio atteint !'
+                        : 'Cardio : $weekCount/$_cardioGoal cette semaine',
+                    style: TextStyle(
+                      color: goalReached ? Colors.greenAccent : Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: done
+                        ? Colors.greenAccent.withOpacity(0.2)
+                        : Colors.deepPurpleAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: done
+                          ? Colors.greenAccent.withOpacity(0.5)
+                          : Colors.deepPurpleAccent.withOpacity(0.5),
+                    ),
+                  ),
+                  child: Text(
+                    done ? 'Fait \u2713' : 'Fait ?',
+                    style: TextStyle(
+                      color: done ? Colors.greenAccent : Colors.deepPurpleAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(7, (i) {
+                final monday = today.subtract(Duration(days: today.weekday - 1));
+                final day = monday.add(Duration(days: i));
+                final filled = _storage.isCardioCompletedOnDate(day);
+                const dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+                final isToday = day.day == today.day &&
+                    day.month == today.month &&
+                    day.year == today.year;
+                return Column(
+                  children: [
+                    Text(
+                      dayLabels[i],
+                      style: TextStyle(
+                        color: isToday
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.3),
+                        fontSize: 11,
+                        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Icon(
+                      filled ? Icons.circle : Icons.circle_outlined,
+                      size: 14,
+                      color: filled
+                          ? (goalReached ? Colors.greenAccent : Colors.deepPurpleAccent)
+                          : Colors.white.withOpacity(0.15),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onStepBannerTap(StepStatus status, bool hasData) async {
+    if (status == StepStatus.healthConnectUnavailable) {
+      _waitingForHealthConnectReturn = true;
+      await _steps.installHealthConnect();
+    } else if (hasData) {
+      await _steps.refreshSteps();
+    } else {
+      // Try the standard permission flow first
+      final error = await _steps.requestPermissions();
+      if (error == null) {
+        await _steps.refreshSteps();
+      } else if (mounted) {
+        // Standard flow failed (MIUI etc.) — show manual instructions
+        _showHealthConnectHelpDialog();
+      }
+    }
+  }
+
+  void _showHealthConnectHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1a1a2e),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.directions_walk, color: Colors.deepPurpleAccent),
+            SizedBox(width: 12),
+            Text(
+              'Compteur de pas',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'L\'autorisation automatique ne fonctionne pas sur ce tel.\n\n'
+              'Pour activer le compteur de pas :',
+              style: TextStyle(color: Colors.white.withOpacity(0.8)),
+            ),
+            const SizedBox(height: 12),
+            _helpStep('1', 'Ouvrir Health Connect'),
+            _helpStep('2', 'Autorisations des applis'),
+            _helpStep('3', 'Routine'),
+            _helpStep('4', 'Activer "Pas"'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Annuler',
+              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _waitingForHealthConnectReturn = true;
+              _steps.openHealthConnectSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurpleAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('Ouvrir Health Connect'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _helpStep(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.deepPurpleAccent.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.deepPurpleAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            text,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
       ),
     );
   }
@@ -365,13 +732,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openSettings(BuildContext context) {
-    Navigator.push(
+  void _openSettings(BuildContext context) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => const SettingsPage(),
       ),
     );
+    if (mounted) setState(() {});
   }
 }
 

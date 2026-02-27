@@ -41,6 +41,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSBluetoothAlwaysAndWhenInUseUsageDescription</key>
+	<string>Cette app utilise le Bluetooth pour se connecter à votre ceinture Polar H10.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Cette app utilise le Bluetooth pour se connecter à votre ceinture Polar H10.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>La localisation est nécessaire pour scanner les appareils Bluetooth.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

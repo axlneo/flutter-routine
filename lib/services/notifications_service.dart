@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:permission_handler/permission_handler.dart';
+import 'storage_service.dart';
 
 class NotificationsService {
   static final NotificationsService _instance = NotificationsService._internal();
@@ -53,6 +54,16 @@ class NotificationsService {
     }
 
     _initialized = true;
+
+    // Re-schedule notifications if they were previously enabled
+    final settings = StorageService().settings;
+    if (settings.notificationsEnabled) {
+      final hasPerm = await hasPermissions();
+      if (hasPerm) {
+        await scheduleAllNotifications();
+        debugPrint('Notifications re-scheduled on startup');
+      }
+    }
   }
 
   Future<void> _createAndroidChannel() async {
@@ -123,7 +134,7 @@ class NotificationsService {
   Future<void> _scheduleMorningNotification() async {
     const title = '🌅 Routine du Matin';
     const body = 'C\'est l\'heure de ta routine + médicaments du matin !\n'
-        '💊 Aspirine, Bisoprolol 3,75mg, Multivitamines';
+        '💊 Ramipril, Bisoprolol, Metformine, Oméga-3, Multivitamines';
 
     await _scheduleDailyNotification(
       id: _morningNotifId,
@@ -138,19 +149,8 @@ class NotificationsService {
   /// Schedule evening notification at 19:00
   Future<void> _scheduleEveningNotification() async {
     const title = '🌙 Routine du Soir';
-    
-    // Get today's weekday to check for omega-3
-    final now = DateTime.now();
-    final isOmega3Day = now.weekday == DateTime.monday || 
-                        now.weekday == DateTime.thursday;
-    
-    final omega3Text = isOmega3Day 
-        ? '+ Oméga-3 EPAX (aujourd\'hui)'
-        : '+ Oméga-3 EPAX (lundi & jeudi)';
-    
-    final body = 'C\'est l\'heure de ta routine + médicaments du soir !\n'
-        '💊 Ramipril, Bisoprolol 2,5mg, Statine, Multivitamines\n'
-        '$omega3Text';
+    const body = 'C\'est l\'heure de ta routine + médicaments du soir !\n'
+        '💊 Aspirine, Bisoprolol, Atorvastatine + ézétimibe, Metformine, Multivitamines';
 
     await _scheduleDailyNotification(
       id: _eveningNotifId,
@@ -241,8 +241,15 @@ class NotificationsService {
     await _notifications.cancel(id);
   }
 
-  /// Show immediate notification (for testing)
+  /// Show immediate notification (for testing).
+  /// Requests permission first if not already granted.
   Future<void> showTestNotification() async {
+    final hasPerm = await hasPermissions();
+    if (!hasPerm) {
+      final granted = await requestPermissions();
+      if (!granted) return;
+    }
+
     const androidDetails = AndroidNotificationDetails(
       'fitness_reminders',
       'Rappels Fitness',

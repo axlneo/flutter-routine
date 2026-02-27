@@ -124,32 +124,25 @@ class StorageService {
 
   /// Morning medications list
   static const List<String> morningMeds = [
-    'Aspirine',
-    'Bisoprolol 3,75 mg',
-    '2 gélules multivitamines Greenwhey',
-  ];
-
-  /// Evening medications list (base)
-  static const List<String> eveningMedsBase = [
     'Ramipril',
-    'Bisoprolol 2,5 mg',
-    'Statine',
-    '2 gélules multivitamines Greenwhey',
+    'Bisoprolol (matin)',
+    'Metformine',
+    '1 capsule Oméga-3',
+    '1 gélule multivitamines',
   ];
 
-  /// Get evening meds including conditional omega-3
+  /// Evening medications list
+  static const List<String> eveningMedsBase = [
+    'Aspirine 100 mg',
+    'Bisoprolol (soir)',
+    'Atorvastatine + ézétimibe',
+    'Metformine',
+    '1 gélule multivitamines',
+  ];
+
+  /// Get evening meds for a given date
   List<String> getEveningMeds(DateTime date) {
-    final meds = List<String>.from(eveningMedsBase);
-    
-    // Add Omega-3 on Monday (1) and Thursday (4)
-    final weekday = date.weekday;
-    if (weekday == DateTime.monday || weekday == DateTime.thursday) {
-      meds.add('Oméga-3 EPAX (aujourd\'hui !)');
-    } else {
-      meds.add('Oméga-3 EPAX (lundi & jeudi)');
-    }
-    
-    return meds;
+    return List<String>.from(eveningMedsBase);
   }
 
   /// Get or create med record for date and slot
@@ -203,6 +196,42 @@ class StorageService {
     return record?.checked ?? false;
   }
 
+  // ============ CARDIO ============
+
+  /// Check if cardio was done on a given date
+  bool isCardioCompletedOnDate(DateTime date) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final record = _meds.get('${dateStr}_cardio');
+    return record?.checked ?? false;
+  }
+
+  /// Toggle cardio completion for a given date
+  Future<void> setCardioCompleted(DateTime date, bool completed) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final key = '${dateStr}_cardio';
+    var record = _meds.get(key);
+    if (record == null) {
+      record = MedRecord(
+        date: dateStr,
+        slot: 'cardio',
+        items: ['Cardio'],
+      );
+    }
+    record.checked = completed;
+    record.checkedAt = completed ? DateTime.now() : null;
+    await _meds.put(key, record);
+  }
+
+  /// Count cardio sessions done this week (Monday → Sunday)
+  int getWeeklyCardioCount(DateTime date) {
+    final monday = date.subtract(Duration(days: date.weekday - 1));
+    int count = 0;
+    for (int i = 0; i < 7; i++) {
+      if (isCardioCompletedOnDate(monday.add(Duration(days: i)))) count++;
+    }
+    return count;
+  }
+
   // ============ CALENDAR MARKERS ============
 
   /// Get markers for calendar view
@@ -212,6 +241,7 @@ class StorageService {
       'eveningRoutine': isRoutineCompletedOnDate(date, 'evening'),
       'morningMeds': areMedsTakenOnDate(date, 'morning'),
       'eveningMeds': areMedsTakenOnDate(date, 'evening'),
+      'cardio': isCardioCompletedOnDate(date),
     };
   }
 }

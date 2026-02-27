@@ -101,6 +101,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     const SizedBox(height: 32),
 
+                    // ========== CARDIO ==========
+                    _buildSectionHeader('🏃 Cardio'),
+                    _buildCardioCard(),
+
+                    const SizedBox(height: 32),
+
                     // ========== NOTIFICATIONS ==========
                     _buildSectionHeader('🔔 Notifications'),
                     _buildNotificationSettings(),
@@ -275,6 +281,73 @@ class _SettingsPageState extends State<SettingsPage> {
     final isTaken = _storage.areMedsTakenOnDate(_selectedDate, slot);
     await _storage.setMedsTaken(_selectedDate, slot, !isTaken);
     setState(() {});
+  }
+
+  Widget _buildCardioCard() {
+    final done = _storage.isCardioCompletedOnDate(_selectedDate);
+    final weekCount = _storage.getWeeklyCardioCount(_selectedDate);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: done
+            ? Colors.redAccent.withOpacity(0.2)
+            : Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: done ? Colors.redAccent.withOpacity(0.5) : Colors.transparent,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                done ? Icons.check_circle : Icons.circle_outlined,
+                color: done ? Colors.redAccent : Colors.white54,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  done ? 'Séance faite' : 'Pas de séance ce jour',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(done ? 1 : 0.7),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Text(
+                '$weekCount/5 semaine',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                await _storage.setCardioCompleted(_selectedDate, !done);
+                setState(() {});
+              },
+              icon: Icon(done ? Icons.close : Icons.fitness_center, size: 18),
+              label: Text(done ? 'Annuler' : 'Marquer comme fait'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: done ? Colors.red.shade700 : Colors.deepPurple,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildNotificationSettings() {

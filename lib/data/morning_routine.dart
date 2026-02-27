@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 
-/// Builds the morning routine sections (20 minutes total)
+/// Builds the morning routine sections (22 minutes total)
 List<Section> buildMorningSections() {
   return [
     // ========== 1) MISE EN ROUTE - 3 min ==========
@@ -72,10 +72,11 @@ List<Section> buildMorningSections() {
           description: '1 minute',
           duration: 60,
           icon: '🔄',
+          isBilateral: true,
           instructions: [
             'Debout, mains sur hanches',
             'Grands cercles',
-            'Dans les deux sens',
+            '🔔 Changez de sens au signal',
           ],
         ),
         Exercise(
@@ -231,9 +232,51 @@ List<Section> buildMorningSections() {
       ],
     ),
 
-    // ========== 5) ÉTIREMENTS - 2 min ==========
+    // ========== 5) GAINAGE - 2 min ==========
     Section(
-      title: '5) Étirements finaux',
+      title: '5) Gainage',
+      emoji: '🟥',
+      color: Colors.red,
+      exercises: [
+        Exercise(
+          title: 'Planche frontale',
+          description: '40 secondes',
+          duration: 40,
+          icon: '🏋️',
+          instructions: [
+            'Sur les avant-bras',
+            'Corps aligné',
+            'Gainez abdos et fessiers',
+          ],
+        ),
+        Exercise(
+          title: 'Planche latérale gauche',
+          description: '40 secondes',
+          duration: 40,
+          icon: '↙️',
+          instructions: [
+            'Avant-bras gauche au sol',
+            'Hanches hautes',
+            'Corps bien aligné',
+          ],
+        ),
+        Exercise(
+          title: 'Planche latérale droite',
+          description: '40 secondes',
+          duration: 40,
+          icon: '↘️',
+          instructions: [
+            'Avant-bras droit au sol',
+            'Hanches hautes',
+            'Corps bien aligné',
+          ],
+        ),
+      ],
+    ),
+
+    // ========== 6) ÉTIREMENTS - 2 min ==========
+    Section(
+      title: '6) Étirements finaux',
       emoji: '🟪',
       color: Colors.purple,
       exercises: [

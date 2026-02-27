@@ -144,6 +144,7 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
                     _buildLegendItem('🌅', 'Matin'),
                     _buildLegendItem('🌙', 'Soir'),
                     _buildLegendItem('💊', 'Médocs'),
+                    _buildLegendItem('🏃', 'Cardio'),
                   ],
                 ),
               ),
@@ -178,6 +179,8 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
             _buildMarkerDot(Colors.indigo),
           if (markers['morningMeds'] == true || markers['eveningMeds'] == true)
             _buildMarkerDot(Colors.green),
+          if (markers['cardio'] == true)
+            _buildMarkerDot(Colors.redAccent),
         ],
       ),
     );
@@ -269,6 +272,12 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
                   markers['eveningMeds'] == true,
                   _storage.getEveningMeds(_selectedDay),
                 ),
+
+                const SizedBox(height: 20),
+
+                // Cardio section
+                _buildSectionTitle('🏃 Cardio'),
+                _buildCardioItem(markers['cardio'] == true),
               ],
             ),
           ),
@@ -453,6 +462,43 @@ class _WeekCalendarPageState extends State<WeekCalendarPage> {
               );
             }).toList(),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardioItem(bool done) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: done
+            ? Colors.redAccent.withOpacity(0.2)
+            : Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: done
+              ? Colors.redAccent.withOpacity(0.5)
+              : Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            done ? Icons.check_circle : Icons.circle_outlined,
+            color: done ? Colors.redAccent : Colors.white30,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            done ? 'Séance faite' : 'Pas de séance',
+            style: TextStyle(
+              color: Colors.white.withOpacity(done ? 1 : 0.6),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const Spacer(),
+          if (done) const Text('\u{1F3C3}'),
         ],
       ),
     );

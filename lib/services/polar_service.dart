@@ -29,6 +29,7 @@ class PolarService {
   StreamSubscription<PolarDeviceInfo>? _connectingSubscription;
   StreamSubscription<PolarDeviceInfo>? _connectedSubscription;
   StreamSubscription<PolarDeviceDisconnectedEvent>? _disconnectedSubscription;
+  Timer? _connectionTimeoutTimer;
 
   // Stream controllers
   final _connectionStateController = StreamController<PolarConnectionState>.broadcast();
@@ -55,6 +56,7 @@ class PolarService {
 
     _connectedSubscription = _polar.deviceConnected.listen((device) {
       debugPrint('Device connected: ${device.deviceId}');
+      _connectionTimeoutTimer?.cancel();
       _connectedDeviceId = device.deviceId;
       _setConnectionState(PolarConnectionState.connected);
       // Start HR streaming once connected
@@ -150,13 +152,23 @@ class PolarService {
     try {
       stopScan();
       _setConnectionState(PolarConnectionState.connecting);
-      
+
+      // Start a 30s timeout — if no `deviceConnected` callback fires, go to error
+      _connectionTimeoutTimer?.cancel();
+      _connectionTimeoutTimer = Timer(const Duration(seconds: 30), () {
+        if (_connectionState == PolarConnectionState.connecting) {
+          debugPrint('Connection timeout for $deviceId');
+          _setConnectionState(PolarConnectionState.error);
+        }
+      });
+
       // The Polar SDK handles connection state via streams
       await _polar.connectToDevice(deviceId);
-      
+
       debugPrint('Connection initiated to $deviceId');
     } catch (e) {
       debugPrint('Connect error: $e');
+      _connectionTimeoutTimer?.cancel();
       _setConnectionState(PolarConnectionState.error);
     }
   }
@@ -200,6 +212,9 @@ class PolarService {
       }
     } catch (e) {
       debugPrint('Start HR streaming error: $e');
+      if (e is TimeoutException) {
+        _setConnectionState(PolarConnectionState.error);
+      }
     }
   }
 
@@ -231,6 +246,7 @@ class PolarService {
 
   /// Dispose resources
   void dispose() {
+    _connectionTimeoutTimer?.cancel();
     _scanSubscription?.cancel();
     _hrSubscription?.cancel();
     _connectingSubscription?.cancel();

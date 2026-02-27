@@ -47,6 +47,9 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage>
   int? _currentHr;
   UserSettings? _settings;
 
+  // Track expanded sections in preview
+  final Map<int, bool> _expandedSections = {};
+
   // Animation for heart
   late AnimationController _heartAnimController;
   late Animation<double> _heartAnimation;
@@ -542,40 +545,159 @@ class _RoutinePlayerPageState extends State<RoutinePlayerPage>
   Widget _buildSectionCard(Section section, int index) {
     final totalDuration = section.totalDuration;
     final minutes = totalDuration ~/ 60;
+    final isExpanded = _expandedSections[index] ?? false;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Text(
-            section.emoji,
-            style: const TextStyle(fontSize: 28),
+          // Section header (tappable)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _expandedSections[index] = !isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Text(
+                    section.emoji,
+                    style: const TextStyle(fontSize: 28),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          section.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          '${section.exercises.length} exercices • ~$minutes min',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.25 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.chevron_right,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
+
+          // Exercise list (expandable)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Column(
+                      children: [
+                        Divider(color: Colors.white.withOpacity(0.15), height: 1),
+                        const SizedBox(height: 8),
+                        ...section.exercises.map((exercise) =>
+                            _buildExercisePreviewItem(exercise)),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExercisePreviewItem(Exercise exercise) {
+    final duration = exercise.duration;
+    final mins = duration ~/ 60;
+    final secs = duration % 60;
+    final durationText = mins > 0
+        ? (secs > 0 ? '${mins}m${secs}s' : '${mins}m')
+        : '${secs}s';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(exercise.icon, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  section.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        exercise.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (exercise.isBilateral)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Bilatéral',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  '${section.exercises.length} exercices • ~$minutes min',
+                  '$durationText — ${exercise.description}',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 12,
                   ),
                 ),
+                if (exercise.instructions.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  ...exercise.instructions.map((i) => Text(
+                        '• $i',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 11,
+                        ),
+                      )),
+                ],
               ],
             ),
           ),

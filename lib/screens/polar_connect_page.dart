@@ -33,6 +33,7 @@ class _PolarConnectPageState extends State<PolarConnectPage>
   String? _connectingDeviceId;
   String? _errorMessage;
   int? _currentHr;
+  Timer? _reconnectTimer;
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -64,12 +65,15 @@ class _PolarConnectPageState extends State<PolarConnectPage>
     _connectionSubscription = _polar.connectionStateStream.listen((state) {
       setState(() {
         _isConnecting = state == PolarConnectionState.connecting;
-        
+
         if (state == PolarConnectionState.connected) {
+          _reconnectTimer?.cancel();
           _onConnectionSuccess();
         } else if (state == PolarConnectionState.error) {
+          _reconnectTimer?.cancel();
           _errorMessage = 'Erreur de connexion. Réessayez.';
           _isConnecting = false;
+          _connectingDeviceId = null;
         }
       });
     });
@@ -91,6 +95,18 @@ class _PolarConnectPageState extends State<PolarConnectPage>
       final savedDeviceId = _storage.settings.polarDeviceId;
       if (savedDeviceId != null && savedDeviceId.isNotEmpty) {
         _connectToDevice(savedDeviceId);
+        // 15s timeout — if reconnection fails, fallback to scan
+        _reconnectTimer = Timer(const Duration(seconds: 15), () {
+          if (mounted && _isConnecting && !_polar.isConnected) {
+            debugPrint('Reconnection timeout, falling back to scan');
+            setState(() {
+              _isConnecting = false;
+              _connectingDeviceId = null;
+              _errorMessage = 'Reconnexion échouée. Lancement du scan...';
+            });
+            _startScan();
+          }
+        });
       } else {
         _startScan();
       }
@@ -153,6 +169,7 @@ class _PolarConnectPageState extends State<PolarConnectPage>
 
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
     _pulseController.dispose();
     _devicesSubscription?.cancel();
     _connectionSubscription?.cancel();
