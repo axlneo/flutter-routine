@@ -58,10 +58,18 @@ class NotificationsService {
     // Re-schedule notifications if they were previously enabled
     final settings = StorageService().settings;
     if (settings.notificationsEnabled) {
-      final hasPerm = await hasPermissions();
+      var hasPerm = await hasPermissions();
+      if (!hasPerm) {
+        hasPerm = await requestPermissions();
+      }
       if (hasPerm) {
         await scheduleAllNotifications();
         debugPrint('Notifications re-scheduled on startup');
+      } else {
+        // Permission refused — sync the setting
+        settings.notificationsEnabled = false;
+        await StorageService().saveSettings(settings);
+        debugPrint('Notifications disabled (permission not granted)');
       }
     }
   }
@@ -115,10 +123,16 @@ class NotificationsService {
   /// Check if permissions are granted
   Future<bool> hasPermissions() async {
     if (Platform.isAndroid) {
-      return await Permission.notification.isGranted;
+      final notifGranted = await Permission.notification.isGranted;
+      final alarmGranted = await Permission.scheduleExactAlarm.isGranted;
+      return notifGranted && alarmGranted;
     } else if (Platform.isIOS) {
-      // iOS doesn't have a simple check, assume granted after request
-      return true;
+      final impl = _notifications
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      if (impl == null) return false;
+      final result = await impl.checkPermissions();
+      return result?.isEnabled ?? false;
     }
     return false;
   }
