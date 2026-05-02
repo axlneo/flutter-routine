@@ -11,6 +11,82 @@ List<Section> buildEveningSections(int day) {
   ];
 }
 
+/// Builds the short evening routine sections for a specific day (~20 minutes)
+/// Échauffement rapide (5 min) + Renfo identique (~15 min)
+List<Section> buildShortEveningSections(int day) {
+  return [
+    _getShortWarmupSection(),
+    _getRenfoSection(day),
+  ];
+}
+
+// ========== SHORT WARMUP (5 min) ==========
+Section _getShortWarmupSection() {
+  return Section(
+    title: '1) Échauffement Rapide',
+    emoji: '🔥',
+    color: Colors.orange,
+    exercises: [
+      Exercise(
+        title: 'Marche rapide sur place',
+        description: '40s effort / 20s repos',
+        duration: 60,
+        icon: '🚶',
+        instructions: [
+          'Montée de genoux contrôlée',
+          'Bras actifs',
+          'Rythme soutenu',
+        ],
+      ),
+      Exercise(
+        title: 'Squat lent contrôlé',
+        description: '40s effort / 20s repos',
+        duration: 60,
+        icon: '🏋️',
+        instructions: [
+          'Poids du corps',
+          'Descente lente',
+          'Cuisses parallèles',
+        ],
+      ),
+      Exercise(
+        title: 'Gainage haut sur banc',
+        description: '40s effort / 20s repos',
+        duration: 60,
+        icon: '🧘',
+        instructions: [
+          'Mains sur banc',
+          'Corps aligné',
+          'Respiration régulière',
+        ],
+      ),
+      Exercise(
+        title: 'Good morning',
+        description: '40s effort / 20s repos',
+        duration: 60,
+        icon: '🌅',
+        instructions: [
+          'Sans charge',
+          'Charnière hanches',
+          'Jambes légèrement fléchies',
+        ],
+      ),
+      Exercise(
+        title: 'Bird-dog',
+        description: '40s effort / 20s repos',
+        duration: 60,
+        icon: '🐦',
+        isBilateral: true,
+        instructions: [
+          'Bras et jambe opposés',
+          'Équilibre',
+          '🔔 Alternez au signal',
+        ],
+      ),
+    ],
+  );
+}
+
 /// Day names for display
 const List<String> dayNames = [
   'Lundi',

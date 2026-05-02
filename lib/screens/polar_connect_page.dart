@@ -3,16 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:polar/polar.dart';
 import '../services/polar_service.dart';
 import '../services/storage_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 
 class PolarConnectPage extends StatefulWidget {
   final VoidCallback? onConnected;
   final VoidCallback? onSkipped;
 
-  const PolarConnectPage({
-    super.key,
-    this.onConnected,
-    this.onSkipped,
-  });
+  const PolarConnectPage({super.key, this.onConnected, this.onSkipped});
 
   @override
   State<PolarConnectPage> createState() => _PolarConnectPageState();
@@ -27,7 +25,7 @@ class _PolarConnectPageState extends State<PolarConnectPage>
   StreamSubscription<List<PolarDeviceInfo>>? _devicesSubscription;
   StreamSubscription<PolarConnectionState>? _connectionSubscription;
   StreamSubscription<int>? _hrSubscription;
-  
+
   bool _isScanning = false;
   bool _isConnecting = false;
   String? _connectingDeviceId;
@@ -51,8 +49,7 @@ class _PolarConnectPageState extends State<PolarConnectPage>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.18).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -65,7 +62,6 @@ class _PolarConnectPageState extends State<PolarConnectPage>
     _connectionSubscription = _polar.connectionStateStream.listen((state) {
       setState(() {
         _isConnecting = state == PolarConnectionState.connecting;
-
         if (state == PolarConnectionState.connected) {
           _reconnectTimer?.cancel();
           _onConnectionSuccess();
@@ -85,24 +81,21 @@ class _PolarConnectPageState extends State<PolarConnectPage>
 
   void _checkExistingConnection() {
     if (_polar.isConnected) {
-      // Already connected - wait a bit then close
       Future.delayed(const Duration(milliseconds: 500), () {
         widget.onConnected?.call();
         if (mounted) Navigator.pop(context, true);
       });
     } else {
-      // Check for saved device
       final savedDeviceId = _storage.settings.polarDeviceId;
       if (savedDeviceId != null && savedDeviceId.isNotEmpty) {
         _connectToDevice(savedDeviceId);
-        // 15s timeout — if reconnection fails, fallback to scan
         _reconnectTimer = Timer(const Duration(seconds: 15), () {
           if (mounted && _isConnecting && !_polar.isConnected) {
             debugPrint('Reconnection timeout, falling back to scan');
             setState(() {
               _isConnecting = false;
               _connectingDeviceId = null;
-              _errorMessage = 'Reconnexion échouée. Lancement du scan...';
+              _errorMessage = 'Reconnexion échouée. Lancement du scan…';
             });
             _startScan();
           }
@@ -119,14 +112,9 @@ class _PolarConnectPageState extends State<PolarConnectPage>
       _devices = [];
       _errorMessage = null;
     });
-
     await _polar.startScan();
-
-    // Update scanning state after timeout
     Future.delayed(const Duration(seconds: 10), () {
-      if (mounted && _isScanning) {
-        setState(() => _isScanning = false);
-      }
+      if (mounted && _isScanning) setState(() => _isScanning = false);
     });
   }
 
@@ -141,25 +129,17 @@ class _PolarConnectPageState extends State<PolarConnectPage>
       _connectingDeviceId = deviceId;
       _errorMessage = null;
     });
-
     _stopScan();
     await _polar.connectToDevice(deviceId);
   }
 
   void _onConnectionSuccess() async {
-    // Save device ID for future connections
     final settings = _storage.settings;
     settings.polarDeviceId = _polar.connectedDeviceId;
     await _storage.saveSettings(settings);
-
-    // Wait a moment to show connected state
     await Future.delayed(const Duration(milliseconds: 800));
-
     widget.onConnected?.call();
-    
-    if (mounted) {
-      Navigator.pop(context, true);
-    }
+    if (mounted) Navigator.pop(context, true);
   }
 
   void _skip() {
@@ -180,117 +160,97 @@ class _PolarConnectPageState extends State<PolarConnectPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: _skip,
-        ),
-        title: const Text(
-          'Connexion Polar H10',
-          style: TextStyle(color: Colors.white),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _skip,
-            child: const Text(
-              'Passer',
-              style: TextStyle(color: Colors.white54),
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          AppHeader(
+            title: 'Polar H10',
+            subtitle: 'Connexion ceinture HR',
+            onBack: _skip,
+            actions: [
+              TextButton(
+                onPressed: _skip,
+                child: const Text(
+                  'Passer',
+                  style: TextStyle(color: AppColors.textOnDarkMuted, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              child: Column(
+                children: [
+                  _buildHeartAnimation(),
+                  const SizedBox(height: 18),
+                  _buildStatusText(),
+                  const SizedBox(height: 18),
+                  if (_errorMessage != null) ...[
+                    AppCard(
+                      color: AppColors.heartSoft,
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: AppColors.heart, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(color: AppColors.heart, fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  Expanded(child: _buildDevicesList()),
+                  if (!_isConnecting) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: _isScanning ? _stopScan : _startScan,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isScanning ? AppColors.warning : AppColors.heart,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: Icon(_isScanning ? Icons.stop : Icons.bluetooth_searching, size: 20),
+                        label: Text(
+                          _isScanning ? 'Arrêter' : 'Rechercher',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  _buildInstructions(),
+                ],
+              ),
             ),
           ),
         ],
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              // Heart animation
-              const SizedBox(height: 20),
-              _buildHeartAnimation(),
-              const SizedBox(height: 30),
-
-              // Status text
-              _buildStatusText(),
-              const SizedBox(height: 30),
-
-              // Error message
-              if (_errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // Devices list
-              Expanded(
-                child: _buildDevicesList(),
-              ),
-
-              // Scan button
-              if (!_isConnecting) ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: _isScanning ? _stopScan : _startScan,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isScanning ? Colors.orange : Colors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    icon: Icon(_isScanning ? Icons.stop : Icons.bluetooth_searching),
-                    label: Text(
-                      _isScanning ? 'Arrêter la recherche' : 'Rechercher appareils',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 16),
-
-              // Instructions
-              _buildInstructions(),
-            ],
-          ),
-        ),
       ),
     );
   }
 
   Widget _buildHeartAnimation() {
     final isConnected = _polar.isConnected;
-    final color = isConnected ? Colors.green : Colors.red;
+    final color = isConnected ? AppColors.success : AppColors.heart;
+    final softColor = isConnected ? AppColors.successSoft : AppColors.heartSoft;
 
     return AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, child) {
+        final scale = isConnected ? 1.0 : _pulseAnimation.value;
         return Container(
-          width: 120 * (isConnected ? 1.0 : _pulseAnimation.value),
-          height: 120 * (isConnected ? 1.0 : _pulseAnimation.value),
+          width: 110 * scale,
+          height: 110 * scale,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withOpacity(0.2),
+            color: softColor,
             border: Border.all(color: color, width: 3),
           ),
           child: Center(
@@ -299,17 +259,17 @@ class _PolarConnectPageState extends State<PolarConnectPage>
               children: [
                 Icon(
                   isConnected ? Icons.favorite : Icons.favorite_border,
-                  size: 50,
+                  size: 44,
                   color: color,
                 ),
                 if (_currentHr != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     '$_currentHr',
                     style: TextStyle(
                       color: color,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
@@ -324,40 +284,37 @@ class _PolarConnectPageState extends State<PolarConnectPage>
   Widget _buildStatusText() {
     String text;
     Color color;
-
     if (_polar.isConnected) {
-      text = 'Connecté !';
-      color = Colors.green;
+      text = 'Connecté';
+      color = AppColors.success;
     } else if (_isConnecting) {
-      text = 'Connexion en cours...';
-      color = Colors.orange;
+      text = 'Connexion en cours…';
+      color = AppColors.warning;
     } else if (_isScanning) {
-      text = 'Recherche d\'appareils Polar...';
-      color = Colors.blue;
+      text = 'Recherche d\'appareils…';
+      color = AppColors.info;
     } else {
       text = 'Prêt à connecter';
-      color = Colors.white70;
+      color = AppColors.textSecondary;
     }
 
     return Column(
       children: [
         Text(
-          text,
+          text.toUpperCase(),
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
             color: color,
+            letterSpacing: 1.2,
           ),
         ),
         if (_isScanning || _isConnecting) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation(color),
-            ),
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(color)),
           ),
         ],
       ],
@@ -370,26 +327,21 @@ class _PolarConnectPageState extends State<PolarConnectPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.bluetooth_disabled,
+            const AppIconBadge(
+              icon: Icons.bluetooth_disabled,
+              color: AppColors.textTertiary,
+              soft: AppColors.surfaceMuted,
               size: 60,
-              color: Colors.white.withOpacity(0.3),
             ),
-            const SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 14),
+            const Text(
               'Aucun appareil trouvé',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 16,
-              ),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Appuyez sur Rechercher pour scanner',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.3),
-                fontSize: 14,
-              ),
+            const SizedBox(height: 4),
+            const Text(
+              'Appuie sur "Rechercher" pour scanner',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
             ),
           ],
         ),
@@ -402,61 +354,48 @@ class _PolarConnectPageState extends State<PolarConnectPage>
         final device = _devices[index];
         final isConnecting = _connectingDeviceId == device.deviceId;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isConnecting ? Colors.orange : Colors.transparent,
-              width: 2,
-            ),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            leading: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.watch,
-                color: Colors.red,
-                size: 28,
-              ),
-            ),
-            title: Text(
-              device.name.isNotEmpty ? device.name : 'Polar Device',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(
-              'ID: ${device.deviceId}',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-              ),
-            ),
-            trailing: isConnecting
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(Colors.orange),
-                    ),
-                  )
-                : const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white54,
-                  ),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: AppCard(
             onTap: isConnecting ? null : () => _connectToDevice(device.deviceId),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                AppIconBadge(
+                  icon: Icons.favorite,
+                  color: isConnecting ? AppColors.warning : AppColors.heart,
+                  soft: isConnecting ? const Color(0xFFFFF3E0) : AppColors.heartSoft,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        device.name.isNotEmpty ? device.name : 'Polar Device',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        device.deviceId,
+                        style: const TextStyle(color: AppColors.textTertiary, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isConnecting)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(AppColors.warning)),
+                  )
+                else
+                  const Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 22),
+              ],
+            ),
           ),
         );
       },
@@ -464,32 +403,33 @@ class _PolarConnectPageState extends State<PolarConnectPage>
   }
 
   Widget _buildInstructions() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return AppCard(
+      color: AppColors.surfaceMuted,
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '💡 Conseils',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontWeight: FontWeight.bold,
-            ),
+          const Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: AppColors.warning, size: 16),
+              SizedBox(width: 6),
+              Text(
+                'CONSEILS',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  letterSpacing: 1.0,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
-          Text(
-            '• Humidifiez les électrodes de la ceinture\n'
-            '• Portez la ceinture sous la poitrine\n'
-            '• Attendez que le voyant clignote',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 13,
-              height: 1.5,
-            ),
+          const Text(
+            '• Humidifie les électrodes de la ceinture\n'
+            '• Porte la ceinture sous la poitrine\n'
+            '• Attends que le voyant clignote',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.5, fontWeight: FontWeight.w500),
           ),
         ],
       ),

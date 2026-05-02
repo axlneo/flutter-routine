@@ -4,6 +4,8 @@ import '../services/storage_service.dart';
 import '../services/notifications_service.dart';
 import '../services/polar_service.dart';
 import '../models/models.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 import 'package:polar/polar.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -21,7 +23,6 @@ class _SettingsPageState extends State<SettingsPage> {
   late UserSettings _settings;
   DateTime _selectedDate = DateTime.now();
 
-  // Controllers for settings
   final _ageController = TextEditingController();
   final _hrRestController = TextEditingController();
   final _hrMaxController = TextEditingController();
@@ -50,128 +51,74 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1A1A2E),
-              Color(0xFF16213E),
-              Color(0xFF0F3460),
-            ],
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          const AppHeader(
+            title: 'Planning & Médicaments',
+            subtitle: 'Paramètres',
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Text(
-                      '🔔 Planning & Médicaments',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                const SectionHeader('Médicaments du jour'),
+                _buildDateSelector(),
+                const SizedBox(height: 10),
+                _buildMedCard('Matin', 'morning'),
+                const SizedBox(height: 10),
+                _buildMedCard('Soir', 'evening'),
 
-              // Content
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    // ========== MEDICATIONS ==========
-                    _buildSectionHeader('💊 Médicaments du jour'),
-                    _buildDateSelector(),
-                    const SizedBox(height: 12),
-                    _buildMedCard('Matin - 7h', 'morning'),
-                    const SizedBox(height: 12),
-                    _buildMedCard('Soir - 19h', 'evening'),
+                const SizedBox(height: 22),
+                const SectionHeader('Cardio'),
+                _buildCardioCard(),
 
-                    const SizedBox(height: 32),
+                const SizedBox(height: 22),
+                const SectionHeader('Notifications'),
+                _buildNotificationSettings(),
 
-                    // ========== CARDIO ==========
-                    _buildSectionHeader('🏃 Cardio'),
-                    _buildCardioCard(),
+                const SizedBox(height: 22),
+                const SectionHeader('Polar H10'),
+                _buildPolarSettings(),
 
-                    const SizedBox(height: 32),
-
-                    // ========== NOTIFICATIONS ==========
-                    _buildSectionHeader('🔔 Notifications'),
-                    _buildNotificationSettings(),
-
-                    const SizedBox(height: 32),
-
-                    // ========== POLAR H10 ==========
-                    _buildSectionHeader('❤️ Polar H10'),
-                    _buildPolarSettings(),
-
-                    const SizedBox(height: 32),
-
-                    // ========== HR SETTINGS ==========
-                    _buildSectionHeader('⚙️ Paramètres HR'),
-                    _buildHrSettings(),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ],
+                const SizedBox(height: 22),
+                const SectionHeader('Paramètres FC'),
+                _buildHrSettings(),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
+  // ============ DATE PICKER ============
 
   Widget _buildDateSelector() {
-    return GestureDetector(
-      onTap: () => _selectDate(),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_today, color: Colors.white70),
-            const SizedBox(width: 12),
-            Text(
+    return AppCard(
+      onTap: _selectDate,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          const AppIconBadge(
+            icon: Icons.calendar_today,
+            color: AppColors.action,
+            soft: AppColors.surfaceMuted,
+            size: 36,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
               DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(_selectedDate),
               style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const Spacer(),
-            const Icon(Icons.arrow_drop_down, color: Colors.white70),
-          ],
-        ),
+          ),
+          const Icon(Icons.arrow_drop_down, color: AppColors.textTertiary),
+        ],
       ),
     );
   }
@@ -184,92 +131,115 @@ class _SettingsPageState extends State<SettingsPage> {
       lastDate: DateTime(2030),
       locale: const Locale('fr', 'FR'),
     );
-    if (date != null) {
-      setState(() {
-        _selectedDate = date;
-      });
-    }
+    if (date != null) setState(() => _selectedDate = date);
   }
+
+  // ============ MEDS ============
 
   Widget _buildMedCard(String title, String slot) {
     final isTaken = _storage.areMedsTakenOnDate(_selectedDate, slot);
     final meds = slot == 'morning'
         ? StorageService.morningMeds
         : _storage.getEveningMeds(_selectedDate);
+    final hour = slot == 'morning' ? _settings.morningHour : _settings.eveningHour;
+    final minute = slot == 'morning' ? _settings.morningMinute : _settings.eveningMinute;
+    final timeStr = '${hour.toString().padLeft(2, '0')}h${minute.toString().padLeft(2, '0')}';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isTaken
-            ? Colors.green.withOpacity(0.2)
-            : Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isTaken ? Colors.green.withOpacity(0.5) : Colors.transparent,
-        ),
-      ),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              AppIconBadge(
+                icon: slot == 'morning' ? Icons.wb_sunny_outlined : Icons.nightlight_round,
+                color: isTaken ? AppColors.success : AppColors.textSecondary,
+                soft: isTaken ? AppColors.successSoft : AppColors.surfaceMuted,
+                size: 36,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(color: AppColors.textTertiary, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
               if (isTaken)
-                const Text('✅', style: TextStyle(fontSize: 20)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.success,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check, color: Colors.white, size: 12),
+                      SizedBox(width: 3),
+                      Text(
+                        'PRIS',
+                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Medication list
-          ...meds.map((med) {
-            final isOmega = med.contains('Oméga');
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.medication,
-                    size: 16,
-                    color: isOmega ? Colors.amber : Colors.white54,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: meds.map((med) {
+              final isOmega = med.contains('Oméga');
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isOmega ? const Color(0xFFFFF3E0) : AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.medication, size: 12, color: isOmega ? AppColors.warning : AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text(
                       med,
                       style: TextStyle(
-                        color: isOmega ? Colors.amber : Colors.white70,
-                        fontSize: 14,
+                        color: isOmega ? AppColors.warning : AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
-
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
           const SizedBox(height: 12),
-
-          // Toggle button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               onPressed: () => _toggleMeds(slot),
+              icon: Icon(isTaken ? Icons.undo : Icons.check_circle_outline, size: 18),
+              label: Text(isTaken ? 'Annuler' : 'Marquer comme pris'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isTaken ? Colors.red.withOpacity(0.8) : Colors.green,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                backgroundColor: isTaken ? AppColors.surfaceVariant : AppColors.success,
+                foregroundColor: isTaken ? AppColors.textPrimary : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text(isTaken ? 'Annuler' : 'Marquer comme pris'),
             ),
           ),
         ],
@@ -283,46 +253,41 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {});
   }
 
+  // ============ CARDIO ============
+
   Widget _buildCardioCard() {
     final done = _storage.isCardioCompletedOnDate(_selectedDate);
     final weekCount = _storage.getWeeklyCardioCount(_selectedDate);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: done
-            ? Colors.redAccent.withOpacity(0.2)
-            : Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: done ? Colors.redAccent.withOpacity(0.5) : Colors.transparent,
-        ),
-      ),
+    return AppCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                done ? Icons.check_circle : Icons.circle_outlined,
-                color: done ? Colors.redAccent : Colors.white54,
+              AppIconBadge(
+                icon: done ? Icons.directions_run : Icons.favorite_border,
+                color: done ? AppColors.heart : AppColors.textTertiary,
+                soft: done ? AppColors.heartSoft : AppColors.surfaceMuted,
+                size: 36,
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  done ? 'Séance faite' : 'Pas de séance ce jour',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(done ? 1 : 0.7),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Text(
-                '$weekCount/5 semaine',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: 13,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      done ? 'Séance faite' : 'Pas de séance ce jour',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '$weekCount/5 cette semaine',
+                      style: const TextStyle(color: AppColors.textTertiary, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -335,13 +300,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 await _storage.setCardioCompleted(_selectedDate, !done);
                 setState(() {});
               },
-              icon: Icon(done ? Icons.close : Icons.fitness_center, size: 18),
+              icon: Icon(done ? Icons.undo : Icons.fitness_center, size: 18),
               label: Text(done ? 'Annuler' : 'Marquer comme fait'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: done ? Colors.red.shade700 : Colors.deepPurple,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                backgroundColor: done ? AppColors.surfaceVariant : AppColors.heart,
+                foregroundColor: done ? AppColors.textPrimary : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -350,56 +314,189 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // ============ NOTIFICATIONS ============
+
   Widget _buildNotificationSettings() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    final morning = TimeOfDay(hour: _settings.morningHour, minute: _settings.morningMinute);
+    final evening = TimeOfDay(hour: _settings.eveningHour, minute: _settings.eveningMinute);
+
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.notifications_active, color: Colors.amber),
+              const AppIconBadge(
+                icon: Icons.notifications_active,
+                color: AppColors.warning,
+                soft: Color(0xFFFFF3E0),
+                size: 36,
+              ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
                   'Rappels quotidiens',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
                 ),
               ),
               Switch(
                 value: _settings.notificationsEnabled,
-                onChanged: (value) => _toggleNotifications(value),
-                activeColor: Colors.green,
+                onChanged: _toggleNotifications,
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '• 7h00 : Routine matin + médicaments\n• 19h00 : Routine soir + médicaments',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 13,
-            ),
-          ),
           const SizedBox(height: 12),
-
-          // Test button
-          OutlinedButton.icon(
-            onPressed: () => _notifications.showTestNotification(),
-            icon: const Icon(Icons.notifications, size: 18),
-            label: const Text('Tester'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white70,
-              side: const BorderSide(color: Colors.white30),
-            ),
+          _buildTimeRow(
+            icon: '🌅',
+            label: 'Matin (routine + médicaments)',
+            time: morning,
+            onPick: () => _pickTime(slot: 'morning', current: morning),
           ),
+          const SizedBox(height: 8),
+          _buildTimeRow(
+            icon: '🌙',
+            label: 'Soir (routine + médicaments)',
+            time: evening,
+            onPick: () => _pickTime(slot: 'evening', current: evening),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _notifications.showTestNotification(),
+                icon: const Icon(Icons.notifications, size: 16),
+                label: const Text('Tester'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _showPendingNotifications,
+                icon: const Icon(Icons.list_alt, size: 16),
+                label: const Text('Voir planifiées'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeRow({
+    required String icon,
+    required String label,
+    required TimeOfDay time,
+    required VoidCallback onPick,
+  }) {
+    final disabled = !_settings.notificationsEnabled;
+    return InkWell(
+      onTap: disabled ? null : onPick,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: disabled ? AppColors.surfaceMuted.withValues(alpha: 0.5) : AppColors.surfaceMuted,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Text(icon, style: TextStyle(fontSize: 18, color: disabled ? AppColors.textTertiary : null)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: disabled ? AppColors.textTertiary : AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: disabled ? AppColors.surfaceVariant : AppColors.polarBlack,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _formatTime(time),
+                style: TextStyle(
+                  color: disabled ? AppColors.textTertiary : AppColors.textOnDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}h${t.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pickTime({required String slot, required TimeOfDay current}) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: current,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+
+    if (slot == 'morning') {
+      _settings.morningHour = picked.hour;
+      _settings.morningMinute = picked.minute;
+    } else {
+      _settings.eveningHour = picked.hour;
+      _settings.eveningMinute = picked.minute;
+    }
+    await _storage.saveSettings(_settings);
+
+    if (_settings.notificationsEnabled) {
+      await _notifications.scheduleAllNotifications();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${slot == 'morning' ? 'Matin' : 'Soir'} reprogrammé à ${_formatTime(picked)}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+    setState(() {});
+  }
+
+  Future<void> _showPendingNotifications() async {
+    final pending = await _notifications.pendingNotifications();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Notifications planifiées'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: pending.isEmpty
+              ? const Text('Aucune notification planifiée.', style: TextStyle(color: AppColors.textSecondary))
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: pending
+                      .map((p) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              '#${p.id} — ${p.title ?? ''}',
+                              style: const TextStyle(color: AppColors.textPrimary),
+                            ),
+                          ))
+                      .toList(),
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
         ],
       ),
     );
@@ -408,23 +505,25 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _toggleNotifications(bool enabled) async {
     if (enabled) {
       final granted = await _notifications.requestPermissions();
-      if (granted) {
-        await _notifications.scheduleAllNotifications();
-        _settings.notificationsEnabled = true;
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission refusée')),
-        );
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Permission refusée')),
+          );
+        }
         return;
       }
+      await _notifications.scheduleAllNotifications();
+      _settings.notificationsEnabled = true;
     } else {
       await _notifications.cancelAllNotifications();
       _settings.notificationsEnabled = false;
     }
-    
     await _storage.saveSettings(_settings);
     setState(() {});
   }
+
+  // ============ POLAR ============
 
   Widget _buildPolarSettings() {
     return StreamBuilder<PolarConnectionState>(
@@ -432,20 +531,20 @@ class _SettingsPageState extends State<SettingsPage> {
       initialData: _polar.connectionState,
       builder: (context, snapshot) {
         final state = snapshot.data ?? PolarConnectionState.disconnected;
+        final isConnected = state == PolarConnectionState.connected;
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
+        return AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Connection status
               Row(
                 children: [
-                  Text(state.icon, style: const TextStyle(fontSize: 24)),
+                  AppIconBadge(
+                    icon: Icons.favorite,
+                    color: isConnected ? AppColors.heart : AppColors.textTertiary,
+                    soft: isConnected ? AppColors.heartSoft : AppColors.surfaceMuted,
+                    size: 36,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -453,90 +552,78 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         const Text(
                           'Polar H10',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800),
                         ),
                         Text(
                           state.label,
                           style: TextStyle(
-                            color: state == PolarConnectionState.connected
-                                ? Colors.green
-                                : Colors.white60,
-                            fontSize: 14,
+                            color: isConnected ? AppColors.success : AppColors.textTertiary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  
-                  // HR display if connected
-                  if (state == PolarConnectionState.connected)
+                  if (isConnected)
                     StreamBuilder<int>(
                       stream: _polar.hrStream,
                       builder: (context, snapshot) {
                         final hr = snapshot.data;
                         return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.heart,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(
-                            hr != null ? '❤️ $hr' : '❤️ --',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.favorite, color: Colors.white, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                hr != null ? '$hr' : '--',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
                     ),
                 ],
               ),
-
-              const SizedBox(height: 16),
-
-              // Action buttons
+              const SizedBox(height: 14),
               if (state == PolarConnectionState.disconnected ||
                   state == PolarConnectionState.error) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _startPolarScan,
-                    icon: const Icon(Icons.bluetooth_searching),
+                    icon: const Icon(Icons.bluetooth_searching, size: 18),
                     label: const Text('Rechercher'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.heart),
                   ),
                 ),
               ],
-
               if (state == PolarConnectionState.scanning) ...[
-                const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
+                const Center(child: CircularProgressIndicator(color: AppColors.heart)),
                 const SizedBox(height: 12),
                 _buildDeviceList(),
               ],
-
-              if (state == PolarConnectionState.connected) ...[
+              if (isConnected) ...[
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _polar.disconnect,
-                    icon: const Icon(Icons.bluetooth_disabled),
+                    icon: const Icon(Icons.bluetooth_disabled, size: 18),
                     label: const Text('Déconnecter'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
+                      foregroundColor: AppColors.heart,
+                      side: const BorderSide(color: AppColors.heart),
                     ),
                   ),
                 ),
@@ -567,26 +654,18 @@ class _SettingsPageState extends State<SettingsPage> {
       initialData: const [],
       builder: (context, snapshot) {
         final devices = snapshot.data ?? [];
-
         if (devices.isEmpty) {
-          return Text(
-            'Recherche en cours...',
-            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          return const Text(
+            'Recherche en cours…',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           );
         }
-
         return Column(
           children: devices.map((device) {
             return ListTile(
-              leading: const Icon(Icons.bluetooth, color: Colors.blue),
-              title: Text(
-                device.name,
-                style: const TextStyle(color: Colors.white),
-              ),
-              subtitle: Text(
-                device.deviceId,
-                style: TextStyle(color: Colors.white.withOpacity(0.5)),
-              ),
+              leading: const Icon(Icons.bluetooth, color: AppColors.info),
+              title: Text(device.name, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+              subtitle: Text(device.deviceId, style: const TextStyle(color: AppColors.textTertiary, fontSize: 11)),
               onTap: () => _polar.connectToDevice(device.deviceId),
             );
           }).toList(),
@@ -595,52 +674,27 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // ============ HR SETTINGS ============
+
   Widget _buildHrSettings() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return AppCard(
       child: Column(
         children: [
-          // Age
-          _buildTextField(
-            'Âge',
-            _ageController,
-            'ans',
-            (value) {
-              _settings.age = int.tryParse(value) ?? 40;
-              _saveSettings();
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // HR Rest
-          _buildTextField(
-            'FC repos (optionnel)',
-            _hrRestController,
-            'bpm',
-            (value) {
-              _settings.hrRest = int.tryParse(value);
-              _saveSettings();
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // HR Max override
-          _buildTextField(
-            'FC max custom (optionnel)',
-            _hrMaxController,
-            'bpm',
-            (value) {
-              _settings.hrMaxOverride = int.tryParse(value);
-              _saveSettings();
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Karvonen toggle
+          _buildTextField('Âge', _ageController, 'ans', (value) {
+            _settings.age = int.tryParse(value) ?? 40;
+            _saveSettings();
+          }),
+          const SizedBox(height: 12),
+          _buildTextField('FC repos (optionnel)', _hrRestController, 'bpm', (value) {
+            _settings.hrRest = int.tryParse(value);
+            _saveSettings();
+          }),
+          const SizedBox(height: 12),
+          _buildTextField('FC max custom (optionnel)', _hrMaxController, 'bpm', (value) {
+            _settings.hrMaxOverride = int.tryParse(value);
+            _saveSettings();
+          }),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -649,17 +703,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     const Text(
                       'Formule Karvonen',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
                     ),
-                    Text(
+                    const Text(
                       'Utilise la FC de repos pour plus de précision',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -671,29 +719,22 @@ class _SettingsPageState extends State<SettingsPage> {
                   _saveSettings();
                   setState(() {});
                 },
-                activeColor: Colors.green,
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // Calculated values
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildCalcValue('FC Max', '${_settings.hrMax} bpm'),
+                _buildCalcValue('FC MAX', '${_settings.hrMax}', 'bpm'),
                 if (_settings.hrRest != null)
-                  _buildCalcValue(
-                    'Réserve',
-                    '${_settings.hrMax - _settings.hrRest!} bpm',
-                  ),
+                  _buildCalcValue('RÉSERVE', '${_settings.hrMax - _settings.hrRest!}', 'bpm'),
               ],
             ),
           ),
@@ -711,42 +752,48 @@ class _SettingsPageState extends State<SettingsPage> {
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
         suffixText: suffix,
-        suffixStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blue),
-        ),
       ),
       onChanged: onChanged,
     );
   }
 
-  Widget _buildCalcValue(String label, String value) {
+  Widget _buildCalcValue(String label, String value, String unit) {
     return Column(
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
-            fontSize: 12,
+          style: const TextStyle(
+            color: AppColors.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+        const SizedBox(height: 4),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+                height: 1.0,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Text(
+              unit,
+              style: const TextStyle(color: AppColors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
       ],
     );

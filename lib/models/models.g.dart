@@ -158,13 +158,17 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       useKarvonen: fields[3] as bool,
       notificationsEnabled: fields[4] as bool,
       polarDeviceId: fields[5] as String?,
+      morningHour: fields[6] as int? ?? 7,
+      morningMinute: fields[7] as int? ?? 0,
+      eveningHour: fields[8] as int? ?? 19,
+      eveningMinute: fields[9] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.age)
       ..writeByte(1)
@@ -176,7 +180,15 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(4)
       ..write(obj.notificationsEnabled)
       ..writeByte(5)
-      ..write(obj.polarDeviceId);
+      ..write(obj.polarDeviceId)
+      ..writeByte(6)
+      ..write(obj.morningHour)
+      ..writeByte(7)
+      ..write(obj.morningMinute)
+      ..writeByte(8)
+      ..write(obj.eveningHour)
+      ..writeByte(9)
+      ..write(obj.eveningMinute);
   }
 
   @override

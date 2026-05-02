@@ -2,136 +2,166 @@ import 'package:flutter/material.dart';
 import 'routine_player_page.dart';
 import '../models/models.dart';
 import '../data/evening_routine.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 
-class DaySelectorPage extends StatelessWidget {
+class DaySelectorPage extends StatefulWidget {
   const DaySelectorPage({super.key});
+
+  @override
+  State<DaySelectorPage> createState() => _DaySelectorPageState();
+}
+
+class _DaySelectorPageState extends State<DaySelectorPage> {
+  bool _isShortRoutine = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF1A1A2E),
-              Color(0xFF16213E),
-              Color(0xFF0F3460),
-            ],
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          const AppHeader(
+            title: 'Routine du Soir',
+            subtitle: 'Choisis ton jour',
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      '🌙 Routine du Soir',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Subtitle
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Text(
-                  'Choisis ton jour pour adapter le renforcement',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withOpacity(0.7),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Day cards
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  itemCount: dayThemes.length,
-                  itemBuilder: (context, index) {
-                    final day = dayThemes[index];
-                    return _DayCard(
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              children: [
+                _buildModeToggle(),
+                const SizedBox(height: 18),
+                const SectionHeader('Jours'),
+                ...List.generate(dayThemes.length, (index) {
+                  final day = dayThemes[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _DayCard(
                       dayNumber: index + 1,
                       dayName: day['day']!,
                       theme: day['theme']!,
                       emoji: day['emoji']!,
                       onTap: () => _startEveningRoutine(context, index + 1),
-                    );
-                  },
-                ),
-              ),
-
-              // Footer info
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text('🔥', style: TextStyle(fontSize: 24)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Structure identique chaque soir',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'HIIT (10 min) + Renfo (20 min) + Stretch (10 min)',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 8),
+                _buildFooterInfo(),
+              ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _modeOption('Complète', '40 min', false)),
+          Expanded(child: _modeOption('Réduite', '~20 min muscu', true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeOption(String title, String sub, bool isShort) {
+    final selected = _isShortRoutine == isShort;
+    return GestureDetector(
+      onTap: () => setState(() => _isShortRoutine = isShort),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.polarBlack : Colors.transparent,
+          borderRadius: BorderRadius.circular(11),
+          boxShadow: selected
+              ? const [BoxShadow(color: Color(0x1A000000), blurRadius: 6, offset: Offset(0, 1))]
+              : null,
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: selected ? AppColors.textOnDark : AppColors.textSecondary,
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                letterSpacing: -0.2,
+              ),
+            ),
+            Text(
+              sub,
+              style: TextStyle(
+                color: selected ? AppColors.textOnDarkMuted : AppColors.textTertiary,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget _buildFooterInfo() {
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          AppIconBadge(
+            icon: _isShortRoutine ? Icons.bolt : Icons.local_fire_department,
+            color: _isShortRoutine ? AppColors.warning : AppColors.heart,
+            soft: _isShortRoutine ? const Color(0xFFFFF3E0) : AppColors.heartSoft,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _isShortRoutine
+                      ? 'Routine réduite muscu'
+                      : 'Structure identique chaque soir',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  _isShortRoutine
+                      ? 'Échauffement (5 min) + Renfo (~15 min)'
+                      : 'HIIT (10 min) + Renfo (20 min) + Stretch (10 min)',
+                  style: const TextStyle(color: AppColors.textTertiary, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _startEveningRoutine(BuildContext context, int day) {
-    final sections = buildEveningSections(day);
+    final sections = _isShortRoutine
+        ? buildShortEveningSections(day)
+        : buildEveningSections(day);
+    final suffix = _isShortRoutine ? ' (Réduite)' : '';
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => RoutinePlayerPage(
           routineType: RoutineType.evening,
           sections: sections,
-          routineTitle: 'Routine du Soir - ${dayNames[day - 1]}',
-          primaryColor: Colors.indigo,
+          routineTitle: 'Routine du Soir$suffix - ${dayNames[day - 1]}',
+          primaryColor: AppColors.polarBlack,
           eveningDay: day,
         ),
       ),
@@ -156,114 +186,90 @@ class _DayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Check if today
     final today = DateTime.now().weekday;
     final isToday = dayNumber == today;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: isToday
-                  ? [const Color(0xFF4E54C8), const Color(0xFF8F94FB)]
-                  : [
-                      Colors.white.withOpacity(0.15),
-                      Colors.white.withOpacity(0.05),
-                    ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: isToday
-                ? null
-                : Border.all(color: Colors.white.withOpacity(0.2)),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Day number
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: isToday
-                      ? Colors.white.withOpacity(0.2)
-                      : Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Text(
-                    '$dayNumber',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+    final bgColor = isToday ? AppColors.polarBlack : AppColors.surface;
+    final fgColor = isToday ? AppColors.textOnDark : AppColors.textPrimary;
+    final fgMuted = isToday ? AppColors.textOnDarkMuted : AppColors.textTertiary;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: isToday ? AppColors.heart : AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  '$dayNumber',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: isToday ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-
-              // Day info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          dayName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        dayName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: fgColor,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      if (isToday) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.heart,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'AUJOURD\'HUI',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
-                        if (isToday) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'Aujourd\'hui',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$emoji $theme',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$emoji $theme',
+                    style: TextStyle(fontSize: 13, color: fgMuted),
+                  ),
+                ],
               ),
-
-              // Arrow
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white.withOpacity(0.5),
-                size: 20,
-              ),
-            ],
-          ),
+            ),
+            Icon(Icons.chevron_right, color: fgMuted, size: 22),
+          ],
         ),
       ),
     );

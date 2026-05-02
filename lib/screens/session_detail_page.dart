@@ -3,15 +3,14 @@ import 'dart:ui' as ui;
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 import 'dart:math' as math;
 
 class SessionDetailPage extends StatefulWidget {
   final SessionRecord session;
 
-  const SessionDetailPage({
-    super.key,
-    required this.session,
-  });
+  const SessionDetailPage({super.key, required this.session});
 
   @override
   State<SessionDetailPage> createState() => _SessionDetailPageState();
@@ -27,19 +26,16 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     _settings = _storage.settings;
   }
 
-  // Calculate zone distribution
   Map<HrZone, int> _calculateZoneDistribution() {
     final zones = <HrZone, int>{};
     for (final zone in HrZone.values) {
       zones[zone] = 0;
     }
-
     for (final point in widget.session.hrTrace) {
       final percent = _settings.calculateHrPercent(point.hr);
       final zone = _settings.getZone(percent);
       zones[zone] = (zones[zone] ?? 0) + 1;
     }
-
     return zones;
   }
 
@@ -57,111 +53,38 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   Widget build(BuildContext context) {
     final session = widget.session;
     final hasHrData = session.hrTrace.isNotEmpty;
+    final isMorning = session.routineId == 'morning';
+    final title = isMorning ? 'Routine Matin' : 'Routine Soir';
+    final dayText = session.day != null ? ' · J${session.day}' : '';
+    final dateLabel = DateFormat('EEEE d MMMM · HH:mm', 'fr_FR').format(session.tsStart);
+    final dateCap = dateLabel[0].toUpperCase() + dateLabel.substring(1);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
-      body: CustomScrollView(
-        slivers: [
-          // App bar with gradient
-          SliverAppBar(
-            expandedHeight: 200,
-            pinned: true,
-            backgroundColor: const Color(0xFF1a1a2e),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildHeader(),
-            ),
-          ),
-
-          // Content
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Stats cards
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          AppHeader(title: '$title$dayText', subtitle: dateCap),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
                 _buildStatsCards(),
-                const SizedBox(height: 24),
-
-                // HR Chart
+                const SizedBox(height: 22),
                 if (hasHrData) ...[
-                  _buildSectionTitle('📈 Fréquence cardiaque'),
-                  const SizedBox(height: 12),
+                  const SectionHeader('Fréquence cardiaque'),
                   _buildHrChart(),
-                  const SizedBox(height: 24),
-
-                  // Zones breakdown
-                  _buildSectionTitle('🎯 Zones d\'entraînement'),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 22),
+                  const SectionHeader('Zones d\'entraînement'),
                   _buildZonesBreakdown(),
-                  const SizedBox(height: 24),
-
-                  // HR Summary
-                  _buildSectionTitle('📊 Résumé FC'),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 22),
+                  const SectionHeader('Résumé FC'),
                   _buildHrSummary(),
-                ] else ...[
+                ] else
                   _buildNoHrData(),
-                ],
-              ]),
+              ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    final session = widget.session;
-    final isMorning = session.routineId == 'morning';
-    final emoji = isMorning ? '🌅' : '🌙';
-    final title = isMorning ? 'Routine Matin' : 'Routine Soir';
-    final dayText = session.day != null ? ' • Jour ${session.day}' : '';
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            isMorning ? Colors.orange.shade700 : Colors.indigo.shade700,
-            isMorning ? Colors.deepOrange.shade900 : Colors.purple.shade900,
-          ],
-        ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                emoji,
-                style: const TextStyle(fontSize: 40),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$title$dayText',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                DateFormat('EEEE d MMMM yyyy • HH:mm', 'fr_FR')
-                    .format(session.tsStart),
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -170,83 +93,101 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final session = widget.session;
     final duration = session.durationMinutes;
     final avgHr = session.averageHr;
+    final completed = session.completed;
 
     return Row(
       children: [
         Expanded(
-          child: _buildStatCard(
-            icon: '⏱️',
-            label: 'Durée',
-            value: '$duration min',
-            color: Colors.blue,
+          child: _statCard(
+            icon: Icons.schedule,
+            label: 'DURÉE',
+            value: '$duration',
+            unit: 'min',
+            color: AppColors.action,
+            soft: AppColors.surfaceMuted,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
-          child: _buildStatCard(
-            icon: '❤️',
-            label: 'FC moyenne',
-            value: avgHr != null ? '$avgHr bpm' : '--',
-            color: Colors.red,
+          child: _statCard(
+            icon: Icons.favorite,
+            label: 'FC MOY.',
+            value: avgHr != null ? '$avgHr' : '—',
+            unit: 'bpm',
+            color: AppColors.heart,
+            soft: AppColors.heartSoft,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
-          child: _buildStatCard(
-            icon: session.completed ? '✅' : '⏸️',
-            label: 'Statut',
-            value: session.completed ? 'Terminé' : 'Incomplet',
-            color: session.completed ? Colors.green : Colors.orange,
+          child: _statCard(
+            icon: completed ? Icons.check : Icons.pause,
+            label: 'STATUT',
+            value: completed ? 'OK' : '—',
+            unit: completed ? 'fini' : 'incomplet',
+            color: completed ? AppColors.success : AppColors.warning,
+            soft: completed ? AppColors.successSoft : const Color(0xFFFFF3E0),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatCard({
-    required String icon,
+  Widget _statCard({
+    required IconData icon,
     required String label,
     required String value,
+    required String unit,
     required Color color,
+    required Color soft,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(icon, style: const TextStyle(fontSize: 24)),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textTertiary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
           ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 11,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                unit,
+                style: const TextStyle(
+                  color: AppColors.textTertiary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
       ),
     );
   }
@@ -255,20 +196,18 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final hrTrace = widget.session.hrTrace;
     if (hrTrace.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: CustomPaint(
-        size: const Size(double.infinity, 188),
-        painter: HrChartPainter(
-          hrTrace: hrTrace,
-          settings: _settings,
-          minHr: _minHr ?? 60,
-          maxHr: _maxHr ?? 180,
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: SizedBox(
+        height: 200,
+        child: CustomPaint(
+          size: const Size(double.infinity, 188),
+          painter: HrChartPainter(
+            hrTrace: hrTrace,
+            settings: _settings,
+            minHr: _minHr ?? 60,
+            maxHr: _maxHr ?? 180,
+          ),
         ),
       ),
     );
@@ -279,38 +218,32 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     final total = zones.values.fold<int>(0, (a, b) => a + b);
     if (total == 0) return const SizedBox.shrink();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return AppCard(
       child: Column(
         children: HrZone.values.reversed.map((zone) {
           final count = zones[zone] ?? 0;
           final percent = total > 0 ? (count / total * 100) : 0.0;
-          final minutes = (count / 60).round(); // Assuming ~1 sample per second
 
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(vertical: 5),
             child: Row(
               children: [
                 Container(
-                  width: 12,
-                  height: 12,
+                  width: 10,
+                  height: 10,
                   decoration: BoxDecoration(
                     color: zone.color,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 SizedBox(
-                  width: 80,
+                  width: 78,
                   child: Text(
                     zone.label,
-                    style: TextStyle(
-                      color: zone.color,
-                      fontWeight: FontWeight.w500,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
                   ),
@@ -320,20 +253,21 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: percent / 100,
-                      backgroundColor: Colors.white.withOpacity(0.1),
+                      backgroundColor: AppColors.surfaceMuted,
                       valueColor: AlwaysStoppedAnimation(zone.color),
-                      minHeight: 8,
+                      minHeight: 7,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 SizedBox(
-                  width: 50,
+                  width: 44,
                   child: Text(
                     '${percent.toStringAsFixed(0)}%',
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
                     ),
                     textAlign: TextAlign.right,
                   ),
@@ -347,94 +281,77 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }
 
   Widget _buildHrSummary() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return AppCard(
       child: Column(
         children: [
-          _buildHrSummaryRow('FC minimum', '${_minHr ?? "--"} bpm', Colors.blue),
-          const Divider(color: Colors.white12),
-          _buildHrSummaryRow(
-            'FC moyenne',
-            '${widget.session.averageHr ?? "--"} bpm',
-            Colors.green,
-          ),
-          const Divider(color: Colors.white12),
-          _buildHrSummaryRow('FC maximum', '${_maxHr ?? "--"} bpm', Colors.red),
-          const Divider(color: Colors.white12),
-          _buildHrSummaryRow(
-            'FC max théorique',
-            '${_settings.hrMax} bpm',
-            Colors.purple,
-          ),
-          const Divider(color: Colors.white12),
-          _buildHrSummaryRow(
-            'Échantillons',
-            '${widget.session.hrTrace.length}',
-            Colors.orange,
-          ),
+          _hrSummaryRow('FC minimum', '${_minHr ?? "—"}', AppColors.info),
+          const Divider(height: 18, color: AppColors.divider),
+          _hrSummaryRow('FC moyenne', '${widget.session.averageHr ?? "—"}', AppColors.success),
+          const Divider(height: 18, color: AppColors.divider),
+          _hrSummaryRow('FC maximum', '${_maxHr ?? "—"}', AppColors.heart),
+          const Divider(height: 18, color: AppColors.divider),
+          _hrSummaryRow('FC max théorique', '${_settings.hrMax}', AppColors.textSecondary),
+          const Divider(height: 18, color: AppColors.divider),
+          _hrSummaryRow('Échantillons', '${widget.session.hrTrace.length}', AppColors.action, suffix: ''),
         ],
       ),
     );
   }
 
-  Widget _buildHrSummaryRow(String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+  Widget _hrSummaryRow(String label, String value, Color color, {String suffix = 'bpm'}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+                letterSpacing: -0.3,
+              ),
             ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
+            if (suffix.isNotEmpty) ...[
+              const SizedBox(width: 3),
+              Text(
+                suffix,
+                style: const TextStyle(color: AppColors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ],
+        ),
+      ],
     );
   }
 
   Widget _buildNoHrData() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.all(28),
       child: Column(
         children: [
-          Icon(
-            Icons.favorite_border,
-            size: 60,
-            color: Colors.white.withOpacity(0.3),
+          AppIconBadge(
+            icon: Icons.favorite_border,
+            color: AppColors.textTertiary,
+            soft: AppColors.surfaceMuted,
+            size: 56,
           ),
-          const SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 14),
+          const Text(
             'Aucune donnée cardiaque',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 16,
-            ),
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Connectez votre Polar H10 pour enregistrer\nvotre fréquence cardiaque',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.4),
-              fontSize: 14,
-            ),
+          const SizedBox(height: 6),
+          const Text(
+            'Connecte ta ceinture Polar H10 pour\nenregistrer ta fréquence cardiaque',
+            style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
             textAlign: TextAlign.center,
           ),
         ],
@@ -443,7 +360,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
   }
 }
 
-// Custom painter for HR chart
+// HR chart painter (light theme)
 class HrChartPainter extends CustomPainter {
   final List<HrPoint> hrTrace;
   final UserSettings settings;
@@ -461,25 +378,17 @@ class HrChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (hrTrace.isEmpty) return;
 
-    final padding = 40.0;
+    const padding = 36.0;
     final chartWidth = size.width - padding;
     final chartHeight = size.height - 24;
 
-    // Calculate HR range with some padding
     final hrMin = (minHr - 10).clamp(40, 200);
     final hrMax = (maxHr + 10).clamp(60, 220);
     final hrRange = hrMax - hrMin;
 
-    // Draw zone backgrounds
     _drawZoneBackgrounds(canvas, size, padding, chartHeight, hrMin, hrRange);
-
-    // Draw grid lines and labels
     _drawGrid(canvas, size, padding, chartHeight, hrMin, hrMax);
-
-    // Draw HR line
     _drawHrLine(canvas, size, padding, chartWidth, chartHeight, hrMin, hrRange);
-
-    // Draw time labels
     _drawTimeLabels(canvas, size, padding, chartWidth);
   }
 
@@ -491,7 +400,6 @@ class HrChartPainter extends CustomPainter {
     int hrMin,
     int hrRange,
   ) {
-    // Zone thresholds based on HRmax percentage
     final zones = [
       (HrZone.redZone, 0.90, 1.0),
       (HrZone.threshold, 0.80, 0.90),
@@ -504,12 +412,11 @@ class HrChartPainter extends CustomPainter {
     for (final (zone, minPct, maxPct) in zones) {
       final minZoneHr = (settings.hrMax * minPct).round();
       final maxZoneHr = (settings.hrMax * maxPct).round();
-
       final top = chartHeight - ((maxZoneHr - hrMin) / hrRange * chartHeight);
       final bottom = chartHeight - ((minZoneHr - hrMin) / hrRange * chartHeight);
 
       final paint = Paint()
-        ..color = zone.color.withOpacity(0.1)
+        ..color = zone.color.withValues(alpha: 0.08)
         ..style = PaintingStyle.fill;
 
       canvas.drawRect(
@@ -533,35 +440,25 @@ class HrChartPainter extends CustomPainter {
     int hrMax,
   ) {
     final gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.1)
+      ..color = AppColors.divider.withValues(alpha: 0.6)
       ..strokeWidth = 1;
 
-    final labelStyle = TextStyle(
-      color: Colors.white.withOpacity(0.5),
+    const labelStyle = TextStyle(
+      color: AppColors.textTertiary,
       fontSize: 10,
+      fontWeight: FontWeight.w600,
     );
 
-    // Horizontal grid lines
     final hrStep = ((hrMax - hrMin) / 5).round();
     for (var hr = hrMin; hr <= hrMax; hr += hrStep) {
       final y = chartHeight - ((hr - hrMin) / (hrMax - hrMin) * chartHeight);
+      canvas.drawLine(Offset(padding, y), Offset(size.width, y), gridPaint);
 
-      canvas.drawLine(
-        Offset(padding, y),
-        Offset(size.width, y),
-        gridPaint,
-      );
-
-      // HR label
       final textPainter = TextPainter(
         text: TextSpan(text: '$hr', style: labelStyle),
         textDirection: ui.TextDirection.ltr,
       )..layout();
-
-      textPainter.paint(
-        canvas,
-        Offset(5, y - textPainter.height / 2),
-      );
+      textPainter.paint(canvas, Offset(2, y - textPainter.height / 2));
     }
   }
 
@@ -581,9 +478,7 @@ class HrChartPainter extends CustomPainter {
 
     for (var i = 0; i < hrTrace.length; i++) {
       final x = padding + (i / (hrTrace.length - 1) * chartWidth);
-      final hr = hrTrace[i].hr;
-      final y = chartHeight - ((hr - hrMin) / hrRange * chartHeight);
-
+      final y = chartHeight - ((hrTrace[i].hr - hrMin) / hrRange * chartHeight);
       if (i == 0) {
         path.moveTo(x, y);
         fillPath.moveTo(x, chartHeight);
@@ -594,7 +489,6 @@ class HrChartPainter extends CustomPainter {
       }
     }
 
-    // Fill gradient under line
     fillPath.lineTo(padding + chartWidth, chartHeight);
     fillPath.close();
 
@@ -603,40 +497,32 @@ class HrChartPainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Colors.red.withOpacity(0.3),
-          Colors.red.withOpacity(0.0),
+          AppColors.heart.withValues(alpha: 0.25),
+          AppColors.heart.withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, chartHeight));
-
     canvas.drawPath(fillPath, fillPaint);
 
-    // Draw line
     final linePaint = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 2
+      ..color = AppColors.heart
+      ..strokeWidth = 2.2
       ..style = PaintingStyle.stroke;
-
     canvas.drawPath(path, linePaint);
   }
 
-  void _drawTimeLabels(
-    Canvas canvas,
-    Size size,
-    double padding,
-    double chartWidth,
-  ) {
+  void _drawTimeLabels(Canvas canvas, Size size, double padding, double chartWidth) {
     if (hrTrace.isEmpty) return;
 
-    final labelStyle = TextStyle(
-      color: Colors.white.withOpacity(0.5),
+    const labelStyle = TextStyle(
+      color: AppColors.textTertiary,
       fontSize: 10,
+      fontWeight: FontWeight.w600,
     );
 
     final startTime = hrTrace.first.t;
     final endTime = hrTrace.last.t;
     final duration = endTime.difference(startTime);
 
-    // Draw start, middle, end time labels
     final times = [
       (0.0, startTime),
       (0.5, startTime.add(Duration(seconds: duration.inSeconds ~/ 2))),
@@ -655,11 +541,7 @@ class HrChartPainter extends CustomPainter {
       var xPos = x - textPainter.width / 2;
       if (pos == 0.0) xPos = padding;
       if (pos == 1.0) xPos = size.width - textPainter.width;
-
-      textPainter.paint(
-        canvas,
-        Offset(xPos, size.height - 15),
-      );
+      textPainter.paint(canvas, Offset(xPos, size.height - 14));
     }
   }
 

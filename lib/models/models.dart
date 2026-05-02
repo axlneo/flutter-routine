@@ -255,6 +255,18 @@ class UserSettings extends HiveObject {
   @HiveField(5)
   String? polarDeviceId;
 
+  @HiveField(6)
+  int morningHour;
+
+  @HiveField(7)
+  int morningMinute;
+
+  @HiveField(8)
+  int eveningHour;
+
+  @HiveField(9)
+  int eveningMinute;
+
   UserSettings({
     this.age = 40,
     this.hrRest,
@@ -262,6 +274,10 @@ class UserSettings extends HiveObject {
     this.useKarvonen = true,
     this.notificationsEnabled = true,
     this.polarDeviceId,
+    this.morningHour = 7,
+    this.morningMinute = 0,
+    this.eveningHour = 19,
+    this.eveningMinute = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -271,6 +287,10 @@ class UserSettings extends HiveObject {
         'useKarvonen': useKarvonen,
         'notificationsEnabled': notificationsEnabled,
         'polarDeviceId': polarDeviceId,
+        'morningHour': morningHour,
+        'morningMinute': morningMinute,
+        'eveningHour': eveningHour,
+        'eveningMinute': eveningMinute,
       };
 
   factory UserSettings.fromJson(Map<String, dynamic> json) => UserSettings(
@@ -280,6 +300,10 @@ class UserSettings extends HiveObject {
         useKarvonen: json['useKarvonen'] as bool? ?? true,
         notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
         polarDeviceId: json['polarDeviceId'] as String?,
+        morningHour: json['morningHour'] as int? ?? 7,
+        morningMinute: json['morningMinute'] as int? ?? 0,
+        eveningHour: json['eveningHour'] as int? ?? 19,
+        eveningMinute: json['eveningMinute'] as int? ?? 0,
       );
 
   int get hrMax => hrMaxOverride ?? (220 - age);

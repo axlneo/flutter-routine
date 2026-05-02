@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -16,46 +17,37 @@ class NotificationsService {
 
   bool _initialized = false;
 
-  // Notification IDs
   static const int _morningNotifId = 1;
   static const int _eveningNotifId = 2;
 
-  /// Initialize the notification service
   Future<void> init() async {
     if (_initialized) return;
 
-    // Initialize timezone
     tz_data.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Europe/Paris'));
 
-    // Android settings
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    // iOS settings
+    const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-
     const initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
 
     await _notifications.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
-    // Create Android notification channel
     if (Platform.isAndroid) {
       await _createAndroidChannel();
     }
 
     _initialized = true;
 
-    // Re-schedule notifications if they were previously enabled
     final settings = StorageService().settings;
     if (settings.notificationsEnabled) {
       var hasPerm = await hasPermissions();
@@ -66,7 +58,6 @@ class NotificationsService {
         await scheduleAllNotifications();
         debugPrint('Notifications re-scheduled on startup');
       } else {
-        // Permission refused — sync the setting
         settings.notificationsEnabled = false;
         await StorageService().saveSettings(settings);
         debugPrint('Notifications disabled (permission not granted)');
@@ -91,41 +82,26 @@ class NotificationsService {
   }
 
   void _onNotificationTap(NotificationResponse response) {
-    // Handle notification tap - could navigate to specific screen
     debugPrint('Notification tapped: ${response.payload}');
   }
 
-  /// Request notification permissions
   Future<bool> requestPermissions() async {
     if (Platform.isAndroid) {
       final status = await Permission.notification.request();
-      
-      // For Android 12+, also request exact alarm permission
-      if (Platform.isAndroid) {
-        await Permission.scheduleExactAlarm.request();
-      }
-      
       return status.isGranted;
     } else if (Platform.isIOS) {
       final result = await _notifications
           .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+          ?.requestPermissions(alert: true, badge: true, sound: true);
       return result ?? false;
     }
     return false;
   }
 
-  /// Check if permissions are granted
   Future<bool> hasPermissions() async {
     if (Platform.isAndroid) {
-      final notifGranted = await Permission.notification.isGranted;
-      final alarmGranted = await Permission.scheduleExactAlarm.isGranted;
-      return notifGranted && alarmGranted;
+      return Permission.notification.isGranted;
     } else if (Platform.isIOS) {
       final impl = _notifications
           .resolvePlatformSpecificImplementation<
@@ -137,46 +113,30 @@ class NotificationsService {
     return false;
   }
 
-  /// Schedule both daily notifications
+  /// Schedule both daily notifications using current settings.
   Future<void> scheduleAllNotifications() async {
     await cancelAllNotifications();
-    await _scheduleMorningNotification();
-    await _scheduleEveningNotification();
-  }
-
-  /// Schedule morning notification at 7:00
-  Future<void> _scheduleMorningNotification() async {
-    const title = '🌅 Routine du Matin';
-    const body = 'C\'est l\'heure de ta routine + médicaments du matin !\n'
-        '💊 Ramipril, Bisoprolol, Metformine, Oméga-3, Multivitamines';
-
+    final settings = StorageService().settings;
     await _scheduleDailyNotification(
       id: _morningNotifId,
-      title: title,
-      body: body,
-      hour: 7,
-      minute: 0,
+      title: '🌅 Routine du Matin',
+      body: 'C\'est l\'heure de ta routine + médicaments du matin !\n'
+          '💊 Ramipril, Bisoprolol, Metformine, Oméga-3, Multivitamines',
+      hour: settings.morningHour,
+      minute: settings.morningMinute,
       payload: 'morning',
     );
-  }
-
-  /// Schedule evening notification at 19:00
-  Future<void> _scheduleEveningNotification() async {
-    const title = '🌙 Routine du Soir';
-    const body = 'C\'est l\'heure de ta routine + médicaments du soir !\n'
-        '💊 Aspirine, Bisoprolol, Atorvastatine + ézétimibe, Metformine, Multivitamines';
-
     await _scheduleDailyNotification(
       id: _eveningNotifId,
-      title: title,
-      body: body,
-      hour: 19,
-      minute: 0,
+      title: '🌙 Routine du Soir',
+      body: 'C\'est l\'heure de ta routine + médicaments du soir !\n'
+          '💊 Aspirine, Bisoprolol, Atorvastatine + ézétimibe, Metformine, Multivitamines',
+      hour: settings.eveningHour,
+      minute: settings.eveningMinute,
       payload: 'evening',
     );
   }
 
-  /// Schedule a daily repeating notification
   Future<void> _scheduleDailyNotification({
     required int id,
     required String title,
@@ -195,68 +155,57 @@ class NotificationsService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
+      icon: 'ic_notification',
+      color: Color(0xFF7E57C2),
       styleInformation: BigTextStyleInformation(''),
     );
-
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _notifications.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledTime,
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: payload,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-    );
-
-    debugPrint('Scheduled notification $id at $scheduledTime');
+    try {
+      await _notifications.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: scheduledTime,
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: payload,
+      );
+      debugPrint('Scheduled notif $id at $scheduledTime');
+    } catch (e, stack) {
+      debugPrint('Failed to schedule notif $id: $e\n$stack');
+    }
   }
 
-  /// Get next instance of specified time
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduled = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      hour,
-      minute,
-    );
-
-    if (scheduled.isBefore(now)) {
+    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (!scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
-
     return scheduled;
   }
 
-  /// Cancel all notifications
   Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
     debugPrint('All notifications cancelled');
   }
 
-  /// Cancel specific notification
   Future<void> cancelNotification(int id) async {
-    await _notifications.cancel(id);
+    await _notifications.cancel(id: id);
+  }
+
+  Future<List<PendingNotificationRequest>> pendingNotifications() {
+    return _notifications.pendingNotificationRequests();
   }
 
   /// Show immediate notification (for testing).
-  /// Requests permission first if not already granted.
   Future<void> showTestNotification() async {
     final hasPerm = await hasPermissions();
     if (!hasPerm) {
@@ -270,24 +219,21 @@ class NotificationsService {
       channelDescription: 'Notifications pour les routines et médicaments',
       importance: Importance.high,
       priority: Priority.high,
+      icon: 'ic_notification',
+      color: Color(0xFF7E57C2),
     );
-
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
     await _notifications.show(
-      999,
-      '🔔 Test',
-      'Les notifications fonctionnent !',
-      details,
+      id: 999,
+      title: '🔔 Test',
+      body: 'Les notifications fonctionnent !',
+      notificationDetails: details,
     );
   }
 }

@@ -11,30 +11,45 @@ class FirebaseSyncService {
   FirebaseSyncService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _googleSignInInitialized = false;
 
   User? get currentUser => _auth.currentUser;
   bool get isSignedIn => _auth.currentUser != null;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    await GoogleSignIn.instance.initialize();
+    _googleSignInInitialized = true;
+  }
+
   /// Sign in with Google. Returns null if user cancelled.
   Future<User?> signInWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) return null;
+    await _ensureGoogleSignInInitialized();
+    final signIn = GoogleSignIn.instance;
+    if (!signIn.supportsAuthenticate()) {
+      throw UnsupportedError(
+          'Plateforme non supportée pour la connexion Google');
+    }
 
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    final userCredential = await _auth.signInWithCredential(credential);
-    return userCredential.user;
+    try {
+      final googleUser = await signIn.authenticate();
+      final googleAuth = googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+      final userCredential = await _auth.signInWithCredential(credential);
+      return userCredential.user;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      rethrow;
+    }
   }
 
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    await _ensureGoogleSignInInitialized();
+    await GoogleSignIn.instance.signOut();
     await _auth.signOut();
   }
 
